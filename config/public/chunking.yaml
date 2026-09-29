@@ -1,0 +1,11 @@
+# Профиль PUBLIC: параметры чанкинга совпадают с config/chunking.yaml.
+paths:
+  input_jsonl: "data/public/prepared/prepared_documents.jsonl"
+  output_jsonl: "data/public/chunks/chunks.jsonl"
+
+chunking:
+  strategy: section
+  chunk_size: 1000
+  chunk_overlap: 150
+  merge_short_sections: true
+  split_long_sentences: true

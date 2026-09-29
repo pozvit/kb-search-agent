@@ -1,0 +1,28 @@
+# Профиль PUBLIC для агента: retrieval по data/public/qdrant_storage.
+# Секции llm и prompt агент не использует (у него свои — config/agent.yaml,
+# src/agent_prompts.py); они оставлены, чтобы работали rag_answer.py / rag_eval.py:
+#   python src/rag_answer.py "вопрос" --config config/public/rag.yaml --no-llm
+paths:
+  qdrant_storage: "data/public/qdrant_storage"
+  results_dir: "results"
+
+retrieval:
+  collection_name: "rag_documents"
+  top_k: 4
+  score_threshold: 0.0
+  model_name: "intfloat/multilingual-e5-small"
+  query_prefix: "query: "
+  normalize_embeddings: true
+
+context:
+  max_chars_per_chunk: 2000
+  max_context_chars: 8000
+  include_metadata: true
+
+llm:
+  provider: "none"
+
+prompt:
+  system: |
+    Ты — ассистент, отвечающий на вопросы строго по предоставленному контексту.
+    Если в контексте нет ответа, ответь ровно: «Недостаточно информации в предоставленных документах.»

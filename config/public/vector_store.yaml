@@ -1,0 +1,22 @@
+# Профиль PUBLIC: отдельное хранилище Qdrant, чтобы не затирать полный индекс.
+paths:
+  input_jsonl: "data/public/embeddings/embeddings.jsonl"
+  output_dir: "data/public/vector_store"
+  qdrant_storage: "data/public/qdrant_storage"
+
+vector_store:
+  type: "qdrant"
+  collection_name: "rag_documents"
+  vector_size: 384
+  distance: "Cosine"
+  recreate_collection: true
+  batch_size: 64
+
+search:
+  top_k: 5
+  test_queries:
+    - "Сколько сегментов рынка микроэлектроники в игре ERGO?"
+    - "Какие эффекты даёт внедрение IBP?"
+    - "Что входит в цифровое ядро AIMS?"
+  use_existing_vectors: true
+  model_name: "intfloat/multilingual-e5-small"

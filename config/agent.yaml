@@ -1,0 +1,61 @@
+# Конфигурация MVP-агента поиска по базе знаний.
+# Секреты здесь не хранятся: локальной Ollama ключ не нужен.
+
+agent:
+  name: "KB Search Agent"
+  profile: public                 # public — 5 обезличенных PDF (тесты, сдача); full — полная база (локально)
+  max_iterations: 3               # кругов «LLM -> tools»; типичный запуск: 2 вызова LLM (план + ответ)
+  max_tool_calls_per_iteration: 3
+  force_search_if_no_tool: true   # qwen2.5:7b иногда отвечает «из головы» без вызова tool —
+                                  # тогда поиск выполняется принудительно (решение пишется в trace)
+
+profiles:
+  public:
+    rag_config: "config/public/rag.yaml"
+    chunks_jsonl: "data/public/chunks/chunks.jsonl"
+  full:
+    rag_config: "config/rag.yaml"
+    chunks_jsonl: "data/chunks/chunks.jsonl"
+
+retriever:
+  backend: qdrant                 # qdrant — семантический поиск e5 + Qdrant (основной режим);
+                                  # lexical — BM25 по chunks.jsonl, без torch/Qdrant/скачивания модели
+                                  # (воспроизводимый прогон сценариев). --retriever, AGENT_RETRIEVER
+
+llm:
+  backend: ollama                 # ollama | mock; переопределяется --llm и AGENT_LLM_BACKEND
+  base_url: "http://localhost:11434"   # нативный API Ollama (/api/chat), не /v1
+  model: "qwen2.5:7b-instruct"
+  temperature: 0.0                # в rag.yaml стоит 0.5 — для агента с tool calling нужен 0
+  seed: 42
+  num_ctx: 8192                   # окно задаётся в запросе: Modelfile не обязателен
+  max_tokens: 700                 # num_predict
+  timeout_seconds: 600            # CPU: prefill ~4-5 тыс. токенов может занимать минуты
+  keep_alive: "30m"               # не выгружать модель между вызовами (по умолчанию Ollama держит 5 мин)
+  mock:
+    min_overlap: 0.4              # доля основ слов вопроса, которая должна встретиться в предложении
+    min_overlap_abs: 2
+    max_sentences: 3
+
+tools:
+  search:
+    default_top_k: 4              # 5 -> 4 относительно rag.yaml: на треть короче промпт на CPU
+    max_top_k: 10
+    max_query_chars: 500
+  list_documents:
+    max_items: 50
+
+context:
+  max_chars_per_chunk: 2000
+  max_context_chars: 8000         # ≈ 2,5–3 тыс. токенов фрагментов в окне 8192
+
+guardrails:
+  max_query_chars: 1000
+  block_secrets: true
+
+memory:
+  max_messages: 6                 # 3 последних пары «вопрос-ответ»
+  max_chars_per_message: 500
+
+validation:
+  check_numbers: true             # числа в ответе сверяются с текстом фрагментов

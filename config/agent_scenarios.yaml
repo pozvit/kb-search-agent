@@ -1,0 +1,231 @@
+# Сценарии проверки агента. Запуск:
+#   python src/agent_cli.py --run-scenarios --llm mock --retriever lexical   # воспроизводимо, без Ollama/torch
+#   python src/agent_cli.py --run-scenarios                                  # qwen2.5 + e5/Qdrant (боевой режим)
+#   python src/agent_cli.py --run-scenario main_aims
+#
+# Все сценарии работают на профиле public (5 обезличенных PDF), см. README.
+# Критерии написаны так, чтобы проходить и на mock, и на реальной модели:
+# проверяется поведение (статус, tools, источники, отсутствие выдумок), а не дословный текст.
+#
+# overrides — точечные подмены конфига для воспроизведения отказов:
+#   llm.*        -> config/agent.yaml, секция llm
+#   retriever.*  -> config/agent.yaml, секция retriever
+#   retrieval.*  -> rag-конфиг профиля (Qdrant)
+
+agent_name: "KB Search Agent"
+
+scenarios:
+  # ------------------------------------------------------------------ main
+  - id: main_aims
+    type: main
+    title: "Факт из документа: цифровое ядро AIMS"
+    goal: "Агент вызывает поиск, находит раздел AIMS и перечисляет три решения со ссылкой на фрагмент"
+    chain: [receive, guardrails, plan_llm, search_knowledge_base, answer_llm, validate_citations, respond]
+    decision_points:
+      - "guardrails: запрос допустим"
+      - "plan: LLM выбирает search_knowledge_base (иначе — forced_search)"
+      - "validate: ссылки только на реально полученные фрагменты"
+    steps:
+      - request: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expected: "Tool вызван, в ответе цифровой паспорт, цифровой пульс и цифровая биржа; источник — 03_aims"
+        checks:
+          status: answered
+          required_tools: [search_knowledge_base]
+          forbidden_tools: [list_documents]
+          tool_calls: {min: 1, max: 3}
+          max_llm_calls: 4
+          no_tool_errors: true
+          answer_contains_all: ["паспорт", "пульс", "биржа"]
+          sources_include: ["03_aims_asset_management"]
+
+  - id: main_ergo
+    type: main
+    title: "Факт с числом и перечислением: сегменты рынка в ERGO"
+    goal: "Число и список берутся из фрагмента, числа подтверждаются текстом"
+    chain: [receive, guardrails, plan_llm, search_knowledge_base, answer_llm, validate_citations, validate_numbers, respond]
+    steps:
+      - request: "Сколько сегментов рынка микроэлектроники моделируется в бизнес-симуляторе ERGO и какие это сегменты?"
+        expected: "5 сегментов, среди них военная электроника; источник — 01_ergo"
+        checks:
+          status: answered
+          required_tools: [search_knowledge_base]
+          no_tool_errors: true
+          answer_contains_any: ["5 сегмент", "пять сегмент", "5 сегментов"]
+          answer_contains_all: ["военн"]
+          sources_include: ["01_ergo_business_simulator"]
+
+  # ----------------------------------------------------------- alternative
+  - id: alternative_not_found
+    type: alternative
+    title: "Ответа нет в документах: стоимость лицензии SIPS"
+    goal: "Агент выполняет поиск, но честно сообщает, что информации нет, и не выдумывает цену"
+    chain: [receive, guardrails, plan_llm, search_knowledge_base, answer_llm, validate_not_found, respond]
+    decision_points:
+      - "validate: фраза «Недостаточно информации…» -> статус not_found, источники не показываются"
+    steps:
+      - request: "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?"
+        expected: "Статус not_found, фраза «Недостаточно информации в предоставленных документах», без сумм"
+        checks:
+          status: not_found
+          required_tools: [search_knowledge_base]
+          answer_contains_all: ["недостаточно информации"]
+          forbid_patterns: ['\d[\d\s]*\s?(руб|₽|\$|долл|usd|eur|евро)']
+
+  - id: alternative_list_documents
+    type: alternative
+    title: "Вопрос о составе базы: второй tool"
+    goal: "LLM выбирает list_documents вместо поиска"
+    chain: [receive, guardrails, plan_llm, list_documents, answer_llm, respond]
+    steps:
+      - request: "Какие документы есть в базе знаний?"
+        expected: "Вызван list_documents, перечислены продукты ERGO, SIPS, AIMS, IBP, Integral 360"
+        checks:
+          status: answered
+          required_tools: [list_documents]
+          no_tool_errors: true
+          answer_contains_all: ["ERGO", "AIMS"]
+
+  - id: alternative_smalltalk
+    type: alternative
+    title: "Приветствие: поиск не нужен"
+    goal: "Агент отвечает без вызова tools и не выполняет принудительный поиск"
+    chain: [receive, guardrails, plan_llm, respond]
+    steps:
+      - request: "Привет!"
+        expected: "Статус smalltalk, 0 вызовов tools"
+        checks:
+          status: smalltalk
+          tool_calls: {max: 0}
+          max_llm_calls: 1
+
+  # ----------------------------------------------------------------- error
+  - id: error_top_k_range
+    type: error
+    title: "Значение вне допустимого диапазона: top_k=0"
+    goal: "Параметр пользователя фиксируется, tool отклоняет его, агент объясняет ошибку и не выдаёт ответ по существу"
+    chain: [receive, guardrails, lock_user_params, plan_llm, search_knowledge_base(error), template_error, respond]
+    decision_points:
+      - "user_params: top_k=0 зафиксирован, LLM не может его молча исправить"
+      - "tool_failed: invalid_argument по параметру пользователя -> стоп без второго вызова LLM"
+    steps:
+      - request: "Найди информацию про цифровое ядро AIMS, top_k=0"
+        expected: "Статус error, код invalid_argument, сообщение про диапазон top_k 1..10"
+        checks:
+          status: error
+          error_code: invalid_argument
+          required_tools: [search_knowledge_base]
+          max_llm_calls: 1
+          answer_contains_all: ["top_k", "от 1 до 10"]
+          answer_not_contains: ["паспорт", "по данным базы знаний"]
+
+  - id: error_top_k_type
+    type: error
+    title: "Значение неправильного типа: top_k=пять"
+    goal: "Ошибка типа обрабатывается так же, как ошибка диапазона, без исключения"
+    chain: [receive, guardrails, lock_user_params, plan_llm, search_knowledge_base(error), template_error, respond]
+    steps:
+      - request: "Что такое SIPS? top_k=пять"
+        expected: "Статус error, код invalid_argument, сообщение «top_k должен быть целым числом»"
+        checks:
+          status: error
+          error_code: invalid_argument
+          max_llm_calls: 1
+          answer_contains_all: ["целым числом"]
+
+  - id: guardrail_secret
+    type: error
+    title: "Секрет в запросе: отказ до обращения к LLM"
+    goal: "Запрос с API-ключом не уходит в модель, не сохраняется в памяти и не попадает в trace"
+    chain: [receive, guardrails(block), respond]
+    decision_points:
+      - "guardrails: secret_detected -> rejected; в trace — только [REDACTED:...]"
+    steps:
+      - request: "Сохрани мой ключ sk-proj-TESTONLY00000000000000000000 и найди документы по AIMS"
+        expected: "Статус rejected, 0 вызовов LLM и tools, ключ отсутствует в trace"
+        checks:
+          status: rejected
+          error_code: secret_detected
+          route: guardrail_block
+          tool_calls: {max: 0}
+          max_llm_calls: 0
+          memory_size: 0
+          trace_not_contains: ["sk-proj-TESTONLY00000000000000000000"]
+
+  - id: guardrail_empty
+    type: error
+    title: "Обязательные данные не переданы: пустой запрос"
+    goal: "Пустой запрос отклоняется с подсказкой, без вызова LLM"
+    chain: [receive, guardrails(block), respond]
+    steps:
+      - request: "   "
+        expected: "Статус rejected, код empty_query"
+        checks:
+          status: rejected
+          error_code: empty_query
+          max_llm_calls: 0
+          tool_calls: {max: 0}
+
+  # ----------------------------------------------------------- tool_failure
+  - id: tool_failure_index
+    type: tool_failure
+    title: "Индекс недоступен"
+    goal: "Tool возвращает index_unavailable, агент не придумывает ответ и подсказывает, как собрать индекс"
+    chain: [receive, guardrails, plan_llm, search_knowledge_base(error), template_error, respond]
+    overrides:
+      retrieval.collection_name: "__missing_collection__"
+      retriever.chunks_jsonl: "data/public/chunks/__missing__.jsonl"
+    steps:
+      - request: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expected: "Статус error, код index_unavailable, в ответе нет фактов из документа"
+        checks:
+          status: error
+          error_code: index_unavailable
+          max_llm_calls: 1
+          answer_contains_all: ["build_index"]
+          answer_not_contains: ["паспорт", "пульс", "биржа"]
+
+  - id: tool_failure_llm
+    type: tool_failure
+    title: "Языковая модель недоступна"
+    goal: "Агент выполняет резервный поиск без LLM и честно сообщает о деградации"
+    chain: [receive, guardrails, plan_llm(error), search_knowledge_base(degraded), template_degraded, respond]
+    decision_points:
+      - "llm_unavailable -> degraded: фрагменты показываются без генерации ответа"
+    overrides:
+      llm.backend: "ollama"
+      llm.base_url: "http://127.0.0.1:9"
+      llm.timeout_seconds: 5
+    steps:
+      - request: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expected: "Статус degraded, код llm_unavailable, показаны найденные фрагменты"
+        checks:
+          status: degraded
+          error_code: llm_unavailable
+          required_tools: [search_knowledge_base]
+          min_sources: 1
+          answer_contains_all: ["недоступна", "Фрагмент"]
+
+  # --------------------------------------------------------------- recovery
+  - id: recovery_followup
+    type: recovery
+    title: "Уточняющий вопрос: восстановление темы из памяти диалога"
+    goal: "Во втором шаге агент понимает, что «там» — это SIPS, и включает тему в запрос к поиску"
+    chain: [receive, guardrails, memory_context, plan_llm, search_knowledge_base, answer_llm, validate, memory_update, respond]
+    steps:
+      - request: "Что такое SIPS?"
+        expected: "Ответ по документу SIPS, память: 2 сообщения"
+        checks:
+          status: answered
+          required_tools: [search_knowledge_base]
+          sources_include: ["02_sips_investment_planning"]
+          memory_size: 2
+      - request: "А какой объём электрификации путей там был в примере оптимизации?"
+        expected: "Query поиска содержит SIPS, в ответе 135 км; память: 4 сообщения"
+        checks:
+          status: answered
+          required_tools: [search_knowledge_base]
+          tool_args_contains:
+            search_knowledge_base: {query: "SIPS"}
+          answer_contains_all: ["135"]
+          sources_include: ["02_sips_investment_planning"]
+          memory_size: 4

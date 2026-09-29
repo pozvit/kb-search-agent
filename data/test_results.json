@@ -1,0 +1,193 @@
+{
+  "agent_name": "KB Search Agent",
+  "created_at": "2026-09-29T10:08:41+00:00",
+  "environment": {
+    "profile": "public",
+    "llm_backend": "mock",
+    "llm_model": "mock",
+    "retriever": "lexical",
+    "embeddings": "не используются (BM25 по chunks.jsonl)",
+    "python": "3.12.10",
+    "platform": "Windows-11"
+  },
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "by_type": {
+      "main": {
+        "total": 2,
+        "passed": 2
+      },
+      "alternative": {
+        "total": 3,
+        "passed": 3
+      },
+      "error": {
+        "total": 4,
+        "passed": 4
+      },
+      "tool_failure": {
+        "total": 2,
+        "passed": 2
+      },
+      "recovery": {
+        "total": 1,
+        "passed": 1
+      }
+    }
+  },
+  "tests": [
+    {
+      "id": "TC-MVP-001",
+      "scenario_id": "main_aims",
+      "type": "main",
+      "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+      "expected": "Tool вызван, в ответе цифровой паспорт, цифровой пульс и цифровая биржа; источник — 03_aims",
+      "actual": "[answered] По данным базы знаний:\n3. Что такое AIMS AIMS (Asset Intelligence Management System 2.0) — интеллектуальная система управления имуществом на базе цифровых решений. Система объединяет управленческое и цифровое ядро. [Фрагмент 1]\nЦифровое ядро:\n• цифровой паспорт актива — единый источник правды об акт",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-002",
+      "scenario_id": "main_ergo",
+      "type": "main",
+      "request": "Сколько сегментов рынка микроэлектроники моделируется в бизнес-симуляторе ERGO и какие это сегменты?",
+      "expected": "5 сегментов, среди них военная электроника; источник — 01_ergo",
+      "actual": "[answered] По данным базы знаний:\n1. Рынок: в игре 5 сегментов рынка микроэлектроники, каждый работает по своим правилам — военная электроника, электронные компоненты, промышленная электроника, low-end (потребительская) электроника, hi-end (премиум). [Фрагмент 1]\nERGO — бизнес-симулятор принятия стратегических",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-003",
+      "scenario_id": "alternative_not_found",
+      "type": "alternative",
+      "request": "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?",
+      "expected": "Статус not_found, фраза «Недостаточно информации в предоставленных документах», без сумм",
+      "actual": "[not_found] Недостаточно информации в предоставленных документах.",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-004",
+      "scenario_id": "alternative_list_documents",
+      "type": "alternative",
+      "request": "Какие документы есть в базе знаний?",
+      "expected": "Вызван list_documents, перечислены продукты ERGO, SIPS, AIMS, IBP, Integral 360",
+      "actual": "[answered] В базе знаний есть документы: ERGO — бизнес-симулятор принятия стратегических решений; SIPS — Strategic Investment Planning Suite; AIMS — Asset Intelligence Management System 2.0; IBP — Интегрированное бизнес-планирование; Integral 360 — концептуальное проектирование индустриально-логистических объе",
+      "tool_calls": [
+        "list_documents"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-005",
+      "scenario_id": "alternative_smalltalk",
+      "type": "alternative",
+      "request": "Привет!",
+      "expected": "Статус smalltalk, 0 вызовов tools",
+      "actual": "[smalltalk] Здравствуйте! Я отвечаю на вопросы по базе знаний: продукты, проекты, кейсы и их показатели. Задайте вопрос — я найду ответ в документах и укажу источники.",
+      "tool_calls": [],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-006",
+      "scenario_id": "error_top_k_range",
+      "type": "error",
+      "request": "Найди информацию про цифровое ядро AIMS, top_k=0",
+      "expected": "Статус error, код invalid_argument, сообщение про диапазон top_k 1..10",
+      "actual": "[error] Не удалось выполнить поиск по базе знаний: top_k должен быть в диапазоне от 1 до 10, получено 0.\nИсправьте параметр и повторите запрос. Например: «top_k=5» или без указания top_k.",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-007",
+      "scenario_id": "error_top_k_type",
+      "type": "error",
+      "request": "Что такое SIPS? top_k=пять",
+      "expected": "Статус error, код invalid_argument, сообщение «top_k должен быть целым числом»",
+      "actual": "[error] Не удалось выполнить поиск по базе знаний: top_k должен быть целым числом, получено «пять».\nИсправьте параметр и повторите запрос. Например: «top_k=5» или без указания top_k.",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-008",
+      "scenario_id": "guardrail_secret",
+      "type": "error",
+      "request": "Сохрани мой ключ [REDACTED:openai_key] и найди документы по AIMS",
+      "expected": "Статус rejected, 0 вызовов LLM и tools, ключ отсутствует в trace",
+      "actual": "[rejected] В запросе обнаружены секретные данные (openai_key). Запрос не отправлен в модель и не сохранён. Удалите ключ/пароль/номер карты из текста; если секрет уже где-то опубликован — перевыпустите его.",
+      "tool_calls": [],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-009",
+      "scenario_id": "guardrail_empty",
+      "type": "error",
+      "request": "",
+      "expected": "Статус rejected, код empty_query",
+      "actual": "[rejected] Пустой запрос. Сформулируйте вопрос по базе знаний, например: «Какие решения входят в цифровое ядро AIMS?»",
+      "tool_calls": [],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-010",
+      "scenario_id": "tool_failure_index",
+      "type": "tool_failure",
+      "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+      "expected": "Статус error, код index_unavailable, в ответе нет фактов из документа",
+      "actual": "[error] Не удалось выполнить поиск по базе знаний: индекс недоступен: нет файла чанков data/public/chunks/__missing__.jsonl. Соберите его: python src/build_index.py --profile public --no-embed\nПроверьте, что индекс собран (python src/build_index.py --profile public) и что хранилище Qdrant не открыто другим ",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-011",
+      "scenario_id": "tool_failure_llm",
+      "type": "tool_failure",
+      "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+      "expected": "Статус degraded, код llm_unavailable, показаны найденные фрагменты",
+      "actual": "[degraded] Языковая модель сейчас недоступна (нет соединения с Ollama по адресу http://127.0.0.1:9 ([WinError 10061] No connection could be made because the target machine actively refused it)). Ответ не сгенерирован. Ниже — найденные фрагменты без обработки, проверьте их вручную.\n\n[Фрагмент 1] AIMS — Asset In",
+      "tool_calls": [
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    },
+    {
+      "id": "TC-MVP-012",
+      "scenario_id": "recovery_followup",
+      "type": "recovery",
+      "request": "Что такое SIPS? → А какой объём электрификации путей там был в примере оптимизации?",
+      "expected": "Ответ по документу SIPS, память: 2 сообщения → Query поиска содержит SIPS, в ответе 135 км; память: 4 сообщения",
+      "actual": "[answered] По данным базы знаний:\nSIPS — Strategic Investment Planning Suite Документ: Описание продукта SIPS (цифровой двойник системы принятия инвестиционных решений) Категория: products / стратегическое и инвестиционное планирование [Фрагмент 1]\n3. Что такое SIPS SIPS (Strategic Investment Planning Suite) — | [answered] По данным базы знаний:\n• электрификация путей: заявлено 200 км, в оптимальной программе 135 км; [Фрагмент 1]\nИсточники: [Фрагмент 1]",
+      "tool_calls": [
+        "search_knowledge_base",
+        "search_knowledge_base"
+      ],
+      "failed_checks": [],
+      "passed": true
+    }
+  ]
+}

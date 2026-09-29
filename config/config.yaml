@@ -1,0 +1,29 @@
+paths:
+  # Смешанная база: несколько папок исходников. Одиночный ключ raw_dir
+  # тоже поддерживается — он остался в config/rag_baseline.yaml.
+  raw_dirs:
+    - "data/raw"              # продуктовые документы (5 PDF)
+    - "data/raw_cards"        # карточки проектов и пропозалов из реестров (.md)
+    - "data/raw_office_pdf"   # коммерческие предложения из презентаций (PDF)
+  prepared_dir: "data/prepared"             # папка для очищенных документов
+  # По одному sidecar на папку. Запись ищется во всех по имени файла:
+  # побеждает тот файл, где для документа есть собственная запись.
+  metadata_files:
+    - "data/raw/metadata.yaml"
+    - "data/raw_cards/metadata.yaml"
+    - "data/raw_office_pdf/metadata.yaml"
+
+cleaning:
+  remove_extra_spaces: true         # удалять множественные пробелы и табуляции
+  remove_empty_lines: true          # удалять пустые строки
+  remove_control_characters: true   # удалять управляющие символы (кроме перевода строки)
+  unwrap_pdf_line_breaks: true      # склеивать строки, разорванные вёрсткой PDF (важно для чанкинга по предложениям)
+
+normalization:
+  unicode_form: "NFKC"              # форма нормализации Unicode
+  normalize_line_endings: true      # приводить переносы строк к \n
+  lowercase: false                  # регистр не трогаем: E5-модели чувствительны к нему
+
+export:
+  format: "jsonl"
+  filename: "prepared_documents.jsonl"

@@ -1,0 +1,16 @@
+# Профиль PUBLIC: та же модель, что и в полной базе.
+paths:
+  input_jsonl: "data/public/chunks/chunks.jsonl"
+  output_jsonl: "data/public/embeddings/embeddings.jsonl"
+
+embedding:
+  model_name: "intfloat/multilingual-e5-small"
+  provider: "sentence-transformers"
+  dimensions: 384
+  batch_size: 32
+  max_tokens: 512
+  passage_prefix: "passage: "
+  normalize_embeddings: true
+
+export:
+  include_text: true

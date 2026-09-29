@@ -1,0 +1,25 @@
+# Профиль PUBLIC: только 5 обезличенных продуктовых PDF из data/raw.
+# На нём строятся тесты агента и отчёты для сдачи — в артефакты не попадают
+# ФИО, наименования клиентов и коды договоров из полной базы.
+# Все производные данные пишутся в data/public/, полный индекс не затрагивается.
+paths:
+  raw_dirs:
+    - "data/raw"
+  prepared_dir: "data/public/prepared"
+  metadata_files:
+    - "data/raw/metadata.yaml"
+
+cleaning:
+  remove_extra_spaces: true
+  remove_empty_lines: true
+  remove_control_characters: true
+  unwrap_pdf_line_breaks: true
+
+normalization:
+  unicode_form: "NFKC"
+  normalize_line_endings: true
+  lowercase: false
+
+export:
+  format: "jsonl"
+  filename: "prepared_documents.jsonl"

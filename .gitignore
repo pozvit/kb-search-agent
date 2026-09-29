@@ -1,0 +1,29 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Промежуточные и производные данные пайплайна
+data/prepared/
+data/chunks/
+data/embeddings/
+data/vector_store/
+data/qdrant_storage/
+
+# Внутренние реестры: исходные книги и производные выгрузки.
+# Содержат ФИО, наименования клиентов-юрлиц и коды договоров — в репозиторий не коммитятся.
+data/raw_xlsb/
+data/raw_csv/
+data/raw_cards/
+
+# Презентации и документы коммерческих предложений: исходники и производные
+data/raw_office/
+data/source_md_office/
+data/raw_office_pdf/
+
+# MVP-агент: производные данные профиля public и сессионные trace
+data/public/
+data/agent/traces/
+.pytest_cache/
+*.log
