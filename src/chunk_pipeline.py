@@ -3,6 +3,7 @@ import uuid
 from chunk_loader import load_prepared_documents
 from chunker import chunk_document
 from chunk_exporter import export_chunks
+from card_metadata import card_meta_for_chunk, load_card_metadata
 
 # Определяем пространство имён для стабильных UUID (можно использовать любой константный UUID)
 NAMESPACE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # UUID для DNS
@@ -19,6 +20,15 @@ def run_chunk_pipeline(config_path: str):
     chunk_overlap = chunk_config['chunk_overlap']
     split_long = chunk_config.get('split_long_sentences', True)
     merge_short = chunk_config.get('merge_short_sections', True)
+    card_meta_paths = config['paths'].get('card_metadata') or []
+    if isinstance(card_meta_paths, str):
+        card_meta_paths = [card_meta_paths]
+    card_index = load_card_metadata(card_meta_paths)
+    if card_meta_paths:
+        print(f"   метаданные карточек реестров: {len(card_index)}")
+    enriched = 0
+    card_files = {name for name, _ in card_index}
+    card_chunks_without_meta = 0
     
     print(f"Загрузка подготовленных документов из {input_file}")
     documents = load_prepared_documents(input_file)
@@ -48,6 +58,12 @@ def run_chunk_pipeline(config_path: str):
             chunk_id = str(chunk_uuid)  # строка в формате UUID
             
             chunk_meta = dict(original_meta)
+            card_meta = card_meta_for_chunk(card_index, original_meta.get('file_name'), chunk_text)
+            if card_meta:
+                chunk_meta.update(card_meta)
+                enriched += 1
+            elif original_meta.get('file_name') in card_files:
+                card_chunks_without_meta += 1
             chunk_meta.update({
                 "document_id": doc_id,
                 "chunk_id": chunk_id,
@@ -65,6 +81,8 @@ def run_chunk_pipeline(config_path: str):
             total_chunks += 1
     
     print(f"Создано {total_chunks} чанков.")
+    if card_index:
+        print(f"   с метаданными карточек: {enriched}; чанков карточек без метаданных: {card_chunks_without_meta}")
     print(f"Сохранение результатов в {output_file}")
     export_chunks(all_chunks, output_file)
     print("Готово!")

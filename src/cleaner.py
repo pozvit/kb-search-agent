@@ -68,3 +68,14 @@ def clean_text(text: str, config: dict) -> str:
         text = '\n'.join(lines)
 
     return text
+
+
+def cleaning_for(doc: dict, cleaning: dict) -> dict:
+    """
+    Склейка строк, разорванных вёрсткой, нужна только PDF. В markdown-карточках
+    реестров каждое поле стоит на своей строке («Клиент: …», «Тип услуги: …»);
+    склейка объединяла их с заголовком карточки в одну строку длиной до сотен символов.
+    """
+    if doc.get('file_type') == 'pdf':
+        return cleaning
+    return {**cleaning, 'unwrap_pdf_line_breaks': False}

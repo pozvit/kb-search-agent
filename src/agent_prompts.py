@@ -17,6 +17,12 @@ SYSTEM_PROMPT = """Ты — агент поиска по корпоративн�
   и включи её в query.
 - list_documents — список документов в базе. Вызывай, когда спрашивают, какие документы или темы есть.
 
+Фильтры search_knowledge_base (допустимые значения перечислены в описании инструмента):
+- category — если вопрос про реестр проектов, пропозалов или проекты учётной базы, передай соответствующую категорию;
+- year_from / year_to — если в вопросе есть год или период («за 2020–2023», «после 2019»);
+- industry — если в вопросе есть отрасль; выбирай значение из списка, ближайшее по смыслу.
+Фильтры сужают выдачу до карточек реестров: для вопросов о продуктах и коммерческих предложениях их не используй.
+
 Правила ответа после получения фрагментов:
 1. Используй только текст фрагментов. Не выдумывай числа, названия и факты; числа приводи точно как во фрагменте.
 2. После каждого факта ставь ссылку на фрагмент в формате [Фрагмент N]. Ссылайся только на номера, которые реально есть в результатах.
@@ -67,13 +73,50 @@ TOOL_SCHEMAS = [
     },
 ]
 
+CATEGORY_HINTS = {
+    "internal/projects": "реестр проектов",
+    "internal/proposals": "реестр пропозалов",
+    "internal/projects_accounting": "проекты учётной базы: описания, Key findings, стоимость",
+    "internal/commercial_proposals": "тексты коммерческих предложений",
+}
+
+
+def build_tool_schemas(facets=None):
+    """
+    Схемы инструментов с допустимыми значениями фильтров из текущего индекса.
+    Без фасетов (индекс недоступен, профиль без реестров) — базовые схемы.
+    """
+    import copy
+    schemas = copy.deepcopy(TOOL_SCHEMAS)
+    if not facets:
+        return schemas
+    props = schemas[0]["function"]["parameters"]["properties"]
+    categories = facets.get("categories") or {}
+    if categories:
+        listed = "; ".join(f"{c}" + (f" — {CATEGORY_HINTS[c]}" if c in CATEGORY_HINTS else "")
+                           for c in list(categories)[:15])
+        props["category"]["description"] = f"Необязательный фильтр по категории. Допустимые значения: {listed}."
+    if facets.get("year_min"):
+        span = f"{facets['year_min']}–{facets['year_max']}"
+        props["year_from"] = {"type": "integer",
+                              "description": f"Необязательно: карточки реестров, закончившиеся не раньше этого года ({span})."}
+        props["year_to"] = {"type": "integer",
+                            "description": f"Необязательно: карточки реестров, начавшиеся не позже этого года ({span})."}
+    industries = list((facets.get("industries") or {}).keys())
+    if industries:
+        props["industry"] = {"type": "string",
+                             "description": "Необязательный фильтр по отрасли карточки реестра. Допустимые значения: "
+                                            + "; ".join(industries[:40]) + "."}
+    return schemas
+
+
 SMALLTALK_ANSWER = ("Здравствуйте! Я отвечаю на вопросы по базе знаний: продукты, проекты, кейсы "
                     "и их показатели. Задайте вопрос — я найду ответ в документах и укажу источники.")
 
 TOOL_ERROR_TEMPLATE = "Не удалось выполнить поиск по базе знаний: {error}"
 
 TOOL_ERROR_HINTS = {
-    "invalid_argument": "Исправьте параметр и повторите запрос. Например: «top_k=5» или без указания top_k.",
+    "invalid_argument": "Исправьте значение параметра и повторите запрос.",
     "index_unavailable": ("Проверьте, что индекс собран (python src/build_index.py --profile public) "
                           "и что хранилище Qdrant не открыто другим процессом."),
     "internal_error": "Повторите запрос; если ошибка повторяется — приложите trace из data/agent/traces/.",

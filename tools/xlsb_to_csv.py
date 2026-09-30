@@ -15,11 +15,14 @@
   3. Матрицу участия сотрудников разворачивает так же: строка = сотрудник в проекте.
      Сохраняет всех участников, включая уже не работающих в компании.
   4. Справочник клиентов и таблицу наличия материалов — как есть.
+  5. Лист checked (учётная база проектов с описаниями и Key findings) — целиком,
+     с сохранением переносов строк в текстовых полях. Это единственный источник
+     содержательного текста о проектах: в основной таблице есть только названия и теги.
 
 Запуск:
     python tools/xlsb_to_csv.py                       # из data/raw_xlsb в data/raw_csv
     python tools/xlsb_to_csv.py --src X --out Y
-    python tools/xlsb_to_csv.py --skip-financial      # без листа со стоимостями
+    python tools/xlsb_to_csv.py --skip-financial      # checked без стоимости и номеров договоров
 
 Требуется: pip install pyxlsb
 """
@@ -44,6 +47,13 @@ MATRIX_ANCHORS = {'Партнер', 'Директор/РП', 'Клиент', 'Н
 
 # Столбцы основных таблиц, которые нужно трактовать как даты
 DATE_HEADERS = {'Дата начала', 'Дата окончания - факт'}
+
+# Текстовые столбцы листа checked, в которых сохраняются переносы строк
+# (абзацы и списки в описаниях и Key findings)
+CHECKED_MULTILINE = {'Описание проекта', 'Key findings', 'Примечания'}
+
+# Столбцы, которые убирает --skip-financial
+FINANCIAL_COLUMNS = {'Стоимость с НДС, руб.', '№ договора (бухгалтерия)'}
 
 
 def excel_date(value: Any) -> str:
@@ -73,6 +83,15 @@ def clean_cell(value: Any) -> str:
             return str(int(value))
         return repr(value)
     return re.sub(r'\s+', ' ', str(value)).strip()
+
+
+def clean_multiline(value: Any) -> str:
+    """Как clean_cell, но сохраняет переносы строк: пробелы схлопываются внутри строки."""
+    if not isinstance(value, str):
+        return clean_cell(value)
+    lines = [re.sub(r'[ \t\u00a0]+', ' ', line).strip() for line in value.replace('\r', '\n').split('\n')]
+    text = '\n'.join(lines)
+    return re.sub(r'\n{3,}', '\n\n', text).strip()
 
 
 def clean_tags(value: Any) -> str:
@@ -272,8 +291,14 @@ def export_team_matrix(path: Path, sheet: str, out: Path, name: str) -> None:
 # ------------------------------------------------------------------ простые листы
 
 def export_flat(path: Path, sheet: str, out: Path, name: str,
-                header_row_idx: int = 0, date_cols: Optional[set] = None) -> None:
-    """Экспортирует лист, у которого шапка на известной строке, без матриц."""
+                header_row_idx: int = 0, date_cols: Optional[set] = None,
+                multiline_cols: Optional[set] = None, drop_cols: Optional[set] = None) -> None:
+    """
+    Экспортирует лист, у которого шапка на известной строке, без матриц.
+
+    multiline_cols — заголовки столбцов, где сохраняются переносы строк;
+    drop_cols — заголовки столбцов, которые не выгружаются.
+    """
     rows = read_rows(path, sheet)
     if header_row_idx >= len(rows):
         print(f"  {sheet}: лист пуст, пропущен")
@@ -286,16 +311,18 @@ def export_flat(path: Path, sheet: str, out: Path, name: str,
     offset = 1 if not headers[0] else 0
     headers = headers[offset:]
     dates = {i for i, h in enumerate(headers) if h in DATE_HEADERS} | (date_cols or set())
+    multiline = {i for i, h in enumerate(headers) if h in (multiline_cols or set())}
+    keep = [i for i, h in enumerate(headers) if h not in (drop_cols or set())]
 
     data: List[List[str]] = []
     for row in rows[header_row_idx + 1:]:
         values = dense(row, width)[offset:]
-        record = [excel_date(v) if i in dates else clean_cell(v)
+        record = [excel_date(v) if i in dates else clean_multiline(v) if i in multiline else clean_cell(v)
                   for i, v in enumerate(values)]
         if any(record):
-            data.append(record)
+            data.append([record[i] for i in keep])
 
-    write_csv(out / f'{name}.csv', headers, data)
+    write_csv(out / f'{name}.csv', [headers[i] for i in keep], data)
 
 
 def main() -> int:
@@ -303,7 +330,7 @@ def main() -> int:
     parser.add_argument('--src', default='data/raw_xlsb', help='папка с .xlsb')
     parser.add_argument('--out', default='data/raw_csv', help='папка для CSV')
     parser.add_argument('--skip-financial', action='store_true',
-                        help='не выгружать лист checked со стоимостями договоров')
+                        help='выгрузить лист checked без стоимости и номеров договоров')
     args = parser.parse_args()
 
     src, out = Path(args.src), Path(args.out)
@@ -320,8 +347,9 @@ def main() -> int:
     export_team_matrix(projects, 'Опыт сотрудников', out, 'project_team')
     export_flat(projects, 'Материалы', out, 'project_materials', header_row_idx=1)
     export_flat(projects, 'Клиенты_upd', out, 'clients', header_row_idx=0)
-    if not args.skip_financial:
-        export_flat(projects, 'checked', out, 'projects_financial', header_row_idx=0)
+    export_flat(projects, 'checked', out, 'projects_checked', header_row_idx=0,
+                multiline_cols=CHECKED_MULTILINE,
+                drop_cols=FINANCIAL_COLUMNS if args.skip_financial else None)
 
     print("База пропозалов:")
     export_main_table(proposals, 'Основная база', out, 'proposals')

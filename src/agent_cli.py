@@ -46,9 +46,14 @@ def _print_response(response, show_trace: bool = False) -> None:
     print(response.answer)
     if response.sources and response.status in ("answered", "degraded"):
         print("\nИсточники:")
+        from agent_tools import card_label
         for s in response.sources:
-            print(f"  [Фрагмент {s['fragment']}] {s['document_name']} — {s['file_name']}, "
-                  f"чанк {s['chunk_index']}, score {s['score']:.4f}")
+            if s.get("card"):
+                print(f"  [Фрагмент {s['fragment']}] {s['card'].get('card_title', '')} "
+                      f"({card_label(s['card'])}) — {s['file_name']}, score {s['score']:.4f}")
+            else:
+                print(f"  [Фрагмент {s['fragment']}] {s['document_name']} — {s['file_name']}, "
+                      f"чанк {s['chunk_index']}, score {s['score']:.4f}")
     if response.warnings:
         print("\nПредупреждения: " + "; ".join(response.warnings))
     tools = ", ".join(f"{c.name}({'ok' if c.status == 'success' else c.error_code})" for c in response.tool_calls)

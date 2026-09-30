@@ -1,6 +1,6 @@
 import yaml
 from loader import load_documents
-from cleaner import clean_text
+from cleaner import clean_text, cleaning_for
 from normalizer import normalize_text
 from structurer import structure_document
 from exporter import export_documents
@@ -28,8 +28,9 @@ def run_pipeline(config_path: str):
     
     print("Очистка текста...")
     cleaned_docs = []
+    cleaning = config.get('cleaning', {})
     for doc in raw_docs:
-        doc['text'] = clean_text(doc['text'], config.get('cleaning', {}))
+        doc['text'] = clean_text(doc['text'], cleaning_for(doc, cleaning))
         if doc['text'].strip():  # пропускаем пустые
             cleaned_docs.append(doc)
     print(f"   Осталось {len(cleaned_docs)} документов после очистки.")

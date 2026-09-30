@@ -48,9 +48,10 @@ class Fragment:
     category: str
     chunk_index: Any
     text: str
+    card: Dict[str, Any] = field(default_factory=dict)   # метаданные карточки реестра, если это карточка
 
     def source_dict(self) -> Dict[str, Any]:
-        return {
+        data = {
             "fragment": self.number,
             "document_name": self.document_name,
             "file_name": self.file_name,
@@ -58,6 +59,9 @@ class Fragment:
             "chunk_index": self.chunk_index,
             "score": self.score,
         }
+        if self.card:
+            data["card"] = dict(self.card)
+        return data
 
 
 @dataclass

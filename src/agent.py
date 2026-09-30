@@ -76,6 +76,9 @@ class KBAgent:
         factory = retriever_factory or self._default_retriever_factory(config)
         self.tools = ToolRegistry(factory, config.get("tools", {}))
 
+        self._schemas: Optional[List[Dict[str, Any]]] = None
+        self._facets_summary: Optional[Dict[str, Any]] = None
+
         mem_cfg = config.get("memory", {})
         self.memory = memory if memory is not None else ShortTermMemory(
             int(mem_cfg.get("max_messages", 6)), int(mem_cfg.get("max_chars_per_message", 500)))
@@ -131,6 +134,8 @@ class KBAgent:
                       rule="уточняющий вопрос: термины темы из памяти будут добавлены в query поиска, "
                            "если модель их не включила")
 
+        tool_schemas = self._tool_schemas(trace)
+
         messages: List[Dict[str, Any]] = [{"role": "system", "content": P.SYSTEM_PROMPT}]
         messages += self.memory.messages()
         messages.append({"role": "user", "content": query})
@@ -141,7 +146,7 @@ class KBAgent:
         # --- 3–5. PLAN / ACT / ANSWER ---------------------------------------
         for iteration in range(1, self.max_iterations + 1):
             state.iteration = iteration
-            reply = self._call_llm(messages, P.TOOL_SCHEMAS, state, trace,
+            reply = self._call_llm(messages, tool_schemas, state, trace,
                                    stage="plan" if not state.tool_calls else "answer")
             if reply is None:
                 return self._degraded(state, trace, started, query)
@@ -203,6 +208,21 @@ class KBAgent:
     # =====================================================================
     # Шаги
     # =====================================================================
+
+    def _tool_schemas(self, trace: Trace) -> List[Dict[str, Any]]:
+        """Схемы инструментов с допустимыми значениями фильтров из индекса; строятся один раз."""
+        if self._schemas is None:
+            facets = self.tools.facets()
+            self._schemas = P.build_tool_schemas(facets)
+            self._facets_summary = {
+                "categories": len((facets or {}).get("categories") or {}),
+                "industries": len((facets or {}).get("industries") or {}),
+                "years": [(facets or {}).get("year_min"), (facets or {}).get("year_max")],
+            } if facets else None
+        trace.add("decision", point="tool_schema", facets=self._facets_summary,
+                  rule="допустимые значения фильтров взяты из индекса" if self._facets_summary
+                  else "фасеты недоступны: базовая схема инструментов")
+        return self._schemas
 
     def _call_llm(self, messages, tools, state: AgentState, trace: Trace, stage: str) -> Optional[LLMReply]:
         state.llm_calls += 1

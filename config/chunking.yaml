@@ -1,6 +1,9 @@
 paths:
   input_jsonl: "data/prepared/prepared_documents.jsonl"
   output_jsonl: "data/chunks/chunks.jsonl"
+  # метаданные карточек реестров (tools/csv_to_cards.py): тип, год, отрасль, услуги — для фильтров поиска
+  card_metadata:
+    - "data/raw_cards/cards_meta.jsonl"
 
 chunking:
   strategy: section             # разбиение по заголовкам разделов; baseline sentence

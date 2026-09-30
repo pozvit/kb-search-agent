@@ -66,12 +66,14 @@ class LexicalRetrieverAdapter:
         n = len(self.chunks)
         self._idf = {t: math.log(1 + (n - d + 0.5) / (d + 0.5)) for t, d in df.items()}
 
-    def search(self, query: str, top_k: int, category: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: int, category: Optional[str] = None,
+               filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        from agent_tools import payload_matches
         q_terms = set(stems(query))
         scored = []
         for i, tf in enumerate(self._tf):
             meta = self.chunks[i].get("metadata", {})
-            if category and meta.get("category") != category:
+            if not payload_matches(meta, category, filters):
                 continue
             score = 0.0
             for term in q_terms:
@@ -96,6 +98,13 @@ class LexicalRetrieverAdapter:
                 "metadata": meta,
             })
         return results
+
+    def facets(self) -> Dict[str, Any]:
+        from agent_tools import FacetAccumulator
+        acc = FacetAccumulator()
+        for chunk in self.chunks:
+            acc.add(chunk.get("metadata", {}))
+        return acc.result()["facets"]
 
     def list_documents(self) -> List[Dict[str, Any]]:
         seen: Dict[str, Dict[str, Any]] = {}
