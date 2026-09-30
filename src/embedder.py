@@ -9,6 +9,13 @@ import numpy as np
 # sentence-transformers и torch не нужны вообще.
 FAKE_EMBEDDINGS = os.environ.get("RAG_FAKE_EMBEDDINGS") == "1"
 
+# Телеметрию библиотек Hugging Face отключаем до их импорта.
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+
+# RAG_EMBEDDINGS_ALLOW_DOWNLOAD=0 — модель берётся только из локального кэша;
+# если её там нет, загрузка завершается ошибкой, обращений к Hugging Face нет вообще.
+ALLOW_DOWNLOAD = os.environ.get("RAG_EMBEDDINGS_ALLOW_DOWNLOAD", "1") != "0"
+
 if not FAKE_EMBEDDINGS:
     from sentence_transformers import SentenceTransformer
 else:  # pragma: no cover - служебный режим
@@ -51,7 +58,32 @@ def _build_model(model_name: str):
         print(f"ВНИМАНИЕ: RAG_FAKE_EMBEDDINGS=1 — вместо '{model_name}' используется "
               f"HashingModel (только для смоук-теста, качество поиска нерелевантно).")
         return HashingModel()
-    return SentenceTransformer(model_name)
+    return _load_sentence_transformer(model_name)
+
+
+def _load_sentence_transformer(model_name: str):
+    """
+    Загрузка по имени модели (SentenceTransformer("intfloat/...")) при каждом запуске
+    обращается к Hugging Face и проверяет, не вышла ли новая версия файлов, даже если
+    модель уже в кэше. Тексты запросов и документов при этом не отправляются —
+    эмбеддинги считаются локально, — но сам запрос (имя модели, версии библиотек, IP) уходит.
+
+    Поэтому сначала пробуем только локальный кэш (local_files_only=True, без сети).
+    В сеть идём, только если модели в кэше нет (первый запуск) и загрузка разрешена.
+    """
+    try:
+        return SentenceTransformer(model_name, local_files_only=True)
+    except TypeError:
+        # очень старые версии sentence-transformers без параметра local_files_only
+        return SentenceTransformer(model_name)
+    except (OSError, ValueError) as exc:   # LocalEntryNotFoundError наследует оба
+        if not ALLOW_DOWNLOAD:
+            raise OSError(
+                f"Модель '{model_name}' не найдена в локальном кэше Hugging Face, а загрузка запрещена "
+                f"(RAG_EMBEDDINGS_ALLOW_DOWNLOAD=0). Скачайте модель один раз без этой переменной."
+            ) from exc
+        print(f"Модель '{model_name}' не найдена в локальном кэше — однократная загрузка с Hugging Face.")
+        return SentenceTransformer(model_name)
 
 
 def get_model_dimension(model) -> int:
