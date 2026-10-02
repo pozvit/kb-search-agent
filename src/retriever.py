@@ -6,6 +6,8 @@ top_k — параметр (по умолчанию берётся из config/r
 мог показать пользователю, на чём основан ответ.
 """
 
+import warnings
+
 from typing import Any, Dict, List
 
 from qdrant_client import QdrantClient
@@ -25,7 +27,11 @@ class Retriever:
         self.model_name = retrieval_cfg['model_name']
 
         storage_path = paths_cfg.get('qdrant_storage', 'data/qdrant_storage')
-        self.client = QdrantClient(path=storage_path)
+        with warnings.catch_warnings():
+            # на ~24 тыс. точек локальный режим работает нормально; совет перейти на сервер Qdrant
+            # полезен при росте базы, но в диалоге агента он выводился при каждом запуске
+            warnings.filterwarnings("ignore", message="Local mode is not recommended", category=UserWarning)
+            self.client = QdrantClient(path=storage_path)
 
         self._assert_collection_exists()
 

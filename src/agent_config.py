@@ -74,6 +74,7 @@ def load_agent_config(path: str = DEFAULT_AGENT_CONFIG, profile: Optional[str] =
     retriever_cfg = config.setdefault("retriever", {})
     retriever_cfg.setdefault("chunks_jsonl", profiles[profile_name].get("chunks_jsonl"))
 
+    config.setdefault("catalog_path", profiles[profile_name].get("cards_meta"))
     config["rag"] = rag_config
     config["profile"] = profile_name
     return config

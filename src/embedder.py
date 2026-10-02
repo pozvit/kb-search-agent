@@ -61,6 +61,15 @@ def _build_model(model_name: str):
     return _load_sentence_transformer(model_name)
 
 
+def _quiet_hf_progress() -> None:
+    """Убирает полосу «Loading weights» при загрузке модели из кэша: в диалоге агента она только шумит."""
+    try:
+        from transformers.utils import logging as hf_logging
+        hf_logging.disable_progress_bar()
+    except Exception:
+        pass
+
+
 def _load_sentence_transformer(model_name: str):
     """
     Загрузка по имени модели (SentenceTransformer("intfloat/...")) при каждом запуске
@@ -71,6 +80,7 @@ def _load_sentence_transformer(model_name: str):
     Поэтому сначала пробуем только локальный кэш (local_files_only=True, без сети).
     В сеть идём, только если модели в кэше нет (первый запуск) и загрузка разрешена.
     """
+    _quiet_hf_progress()
     try:
         return SentenceTransformer(model_name, local_files_only=True)
     except TypeError:
@@ -92,7 +102,8 @@ def get_model_dimension(model) -> int:
     по-разному (get_sentence_embedding_dimension / get_embedding_dimension),
     поэтому проверяем оба и в крайнем случае считаем по тестовому вектору.
     """
-    for attr in ("get_sentence_embedding_dimension", "get_embedding_dimension"):
+    # новое имя проверяется первым: старое в свежих версиях выдаёт FutureWarning
+    for attr in ("get_embedding_dimension", "get_sentence_embedding_dimension"):
         getter = getattr(model, attr, None)
         if callable(getter):
             dim = getter()

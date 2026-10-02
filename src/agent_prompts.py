@@ -5,6 +5,8 @@
 недоступность LLM. Так агент физически не может сообщить об успехе при ошибке.
 """
 
+import copy
+
 NOT_FOUND_ANSWER = "Недостаточно информации в предоставленных документах."
 
 SYSTEM_PROMPT = """Ты — агент поиска по корпоративной базе знаний (продукты, проекты, коммерческие предложения).
@@ -18,10 +20,22 @@ SYSTEM_PROMPT = """Ты — агент поиска по корпоративн�
 - list_documents — список документов в базе. Вызывай, когда спрашивают, какие документы или темы есть.
 
 Фильтры search_knowledge_base (допустимые значения перечислены в описании инструмента):
-- category — если вопрос про реестр проектов, пропозалов или проекты учётной базы, передай соответствующую категорию;
+- category — если вопрос про реестр проектов или пропозалов, передай соответствующую категорию;
 - year_from / year_to — если в вопросе есть год или период («за 2020–2023», «после 2019»);
 - industry — если в вопросе есть отрасль; выбирай значение из списка, ближайшее по смыслу.
 Фильтры сужают выдачу до карточек реестров: для вопросов о продуктах и коммерческих предложениях их не используй.
+Отрасль передавай только значением из списка в описании инструмента; в скобках у значений — русские синонимы
+(например, вопрос про медицину — значение, у которого в скобках «медицина»).
+Для вопросов-перечислений («какие проекты были…», «перечисли…») ставь top_k 8–10.
+«Кто делал», «кто работал», «какие сотрудники» — это вопрос о людях: называй людей из полей «Команда (действующие сотрудники)»,
+«Партнёр / директор», «Имя сотрудника», «Участники» и указывай, из какого поля имя. Компанию, где выполнен проект,
+называй, только если спрашивают именно о компании.
+Если вопрос уточняет прошлый ответ («кто делал эти проекты», «а сроки?», «по людям»), передай previous_results=true:
+поиск пойдёт только по карточкам, на которые ты ссылался в прошлом ответе.
+Если доступен list_cards: для перечислений («какие проекты были…», «сколько пропозалов…») вызывай list_cards — он вернёт
+все карточки по условиям, а не только самые похожие; для вопросов о людях добавь include_people=true.
+Ответ по list_cards — список карточек без ссылок на фрагменты. «Кто сделал больше всего проектов в …» — list_cards
+с group_by="people" и фильтром: тип услуги (service) или отрасль (industry).
 
 Правила ответа после получения фрагментов:
 1. Используй только текст фрагментов. Не выдумывай числа, названия и факты; числа приводи точно как во фрагменте.
@@ -81,14 +95,35 @@ CATEGORY_HINTS = {
 }
 
 
-def build_tool_schemas(facets=None):
+LIST_CARDS_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "list_cards",
+        "description": "Полный список карточек реестров проектов и пропозалов по условиям (отрасль, период, тип), "
+                       "без ограничения top_k. Для перечислений и подсчётов; с include_people=true — команды и партнёры.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "card_type": {"type": "string", "description": "project — проекты, proposal — пропозалы; не указывай, чтобы взять оба."},
+                "include_people": {"type": "boolean", "description": "true — добавить команду, партнёра и имя сотрудника."},
+                "group_by": {"type": "string", "description": "people — рейтинг людей по числу карточек "
+                                                             "(для вопросов «кто сделал больше всего проектов в …»)."},
+                "person": {"type": "string", "description": "Фамилия сотрудника: только его карточки."},
+            },
+        },
+    },
+}
+
+
+def build_tool_schemas(facets=None, with_catalog: bool = False, services=None):
     """
     Схемы инструментов с допустимыми значениями фильтров из текущего индекса.
     Без фасетов (индекс недоступен, профиль без реестров) — базовые схемы.
     """
-    import copy
     schemas = copy.deepcopy(TOOL_SCHEMAS)
     if not facets:
+        if with_catalog:
+            schemas.append(copy.deepcopy(LIST_CARDS_SCHEMA))
         return schemas
     props = schemas[0]["function"]["parameters"]["properties"]
     categories = facets.get("categories") or {}
@@ -102,11 +137,30 @@ def build_tool_schemas(facets=None):
                               "description": f"Необязательно: карточки реестров, закончившиеся не раньше этого года ({span})."}
         props["year_to"] = {"type": "integer",
                             "description": f"Необязательно: карточки реестров, начавшиеся не позже этого года ({span})."}
+    if facets.get("card_types"):
+        props["previous_results"] = {"type": "boolean",
+                                     "description": "true — искать только среди карточек реестров, на которые ссылался "
+                                                    "прошлый ответ (для уточнений: «кто делал эти проекты», «а сроки?»)."}
     industries = list((facets.get("industries") or {}).keys())
     if industries:
+        from agent_tools import INDUSTRY_SYNONYMS
+        listed = []
+        for name in industries[:40]:
+            hints = INDUSTRY_SYNONYMS.get(name)
+            listed.append(f"{name} ({', '.join(hints[:3])})" if hints else name)
         props["industry"] = {"type": "string",
-                             "description": "Необязательный фильтр по отрасли карточки реестра. Допустимые значения: "
-                                            + "; ".join(industries[:40]) + "."}
+                             "description": "Необязательный фильтр по отрасли карточки реестра. Передавай только "
+                                            "значение до скобок; в скобках русские синонимы: " + "; ".join(listed) + "."}
+    if with_catalog:
+        list_cards = copy.deepcopy(LIST_CARDS_SCHEMA)
+        lp = list_cards["function"]["parameters"]["properties"]
+        for key in ("industry", "year_from", "year_to", "previous_results"):
+            if key in props:
+                lp[key] = copy.deepcopy(props[key])
+        if services:
+            lp["service"] = {"type": "string", "description": "Тип услуги карточки. Допустимые значения: "
+                                                              + "; ".join(services) + "."}
+        schemas.append(list_cards)
     return schemas
 
 

@@ -34,14 +34,40 @@ from agent_llm import LLMReply, create_backend
 from agent_memory import ShortTermMemory
 from agent_models import (STATUS_ANSWERED, STATUS_DEGRADED, STATUS_ERROR, STATUS_NOT_FOUND,
                           STATUS_REJECTED, STATUS_SMALLTALK, AgentResponse, AgentState, ToolCall, Trace)
-from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, format_documents, format_error,
-                         format_fragments, hits_to_fragments)
+from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, detect_industries, detect_period, detect_services,
+                         format_documents, format_error, format_fragments, hits_to_fragments)
 
 _SMALLTALK = re.compile(
     r"(?i)^\s*(привет|здравствуй|здравствуйте|добрый (день|вечер|утро)|спасибо|благодарю|пока)\b[\s!.,)]*$")
 # уточняющий вопрос: начинается с «а/и/ещё» или ссылается на предыдущую тему местоимением
-_FOLLOWUP = re.compile(r"(?i)^\s*(а|и|ещё|еще)\s|(?<![а-яё])(там|тут|этом|этого|этой|этих|нём|нем|него|неё|нее|них)(?![а-яё])")
+_FOLLOWUP = re.compile(r"(?i)^\s*(а|и|ещё|еще)\s|(?<![а-яё])(там|тут|это|эти|этих|этим|этими|этот|эту|этом|этого|этой|"
+                       r"их|они|нём|нем|него|неё|нее|них|ним|ними)(?![а-яё])")
+# отсылка к тому, что было найдено в прошлом ответе: «эти проекты», «по ним», «перечисленные»
+_ANAPHORA = re.compile(r"(?i)(?<![а-яё])(это|эти|этих|этим|этими|этот|эту|этого|этом|этой|их|они|них|ним|ними|"
+                       r"перечисленн\w*|указанн\w*|найденн\w*|вышеуказанн\w*)(?![а-яё])")
+_SHORT_FOLLOWUP = re.compile(r"(?i)^\s*(а|и|ещё|еще)\s")
+# слова, которые задают новую область поиска, а не уточняют прошлый ответ
+_SCOPE_WORDS = re.compile(r"(?i)(?<![а-яё])(проект\w*|пропозал\w*|предложени\w*|продукт\w*|учётн\w*|учетн\w*|"
+                          r"кп|реестр\w*)(?![а-яё])|(19|20)\d{2}")
 _TOPIC_WORD = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\-]*")
+# программный маршрутизатор: перечисления и вопросы о людях отвечаются по каталогу карточек, без поиска и без LLM
+_ENUM = re.compile(r"(?i)^\s*(какие|каких|перечисли\w*|список|покажи|сколько|назови|выведи)(?![а-яё])|"
+                   r"(?<![а-яё])все\s+(проект|пропозал)")
+_REGISTRY_NOUN = re.compile(r"(?i)(?<![а-яё])(проект|пропозал|кейс|опыт)")
+_PEOPLE = re.compile(r"(?i)(?<![а-яё])(кто|сотрудник\w*|команд\w*|участ\w*|люд\w*|человек\w*|исполнител\w*|"
+                     r"делал\w*|выполнял\w*|работал\w*|партн[её]р\w*)(?![а-яё])")
+# подсчёт: «кто сделал больше всего проектов в …», «у кого много пропозалов», «топ сотрудников по …»
+_AGG = re.compile(r"(?i)(больше\s+всего|(?<![а-яё])много(?![а-яё])|чаще\w*|наибольш\w*|(?<![а-яё])топ(?![а-яё])|"
+                  r"самы[йеех]\s+опытн\w*|лидер\w*|рейтинг\w*)")
+_WHO = re.compile(r"(?i)(?<![а-яё])(кто|у\s+кого|сотрудник\w*|люди|людей|эксперт\w*)(?![а-яё])")
+_PERSON_WORK = re.compile(r"(?i)(?<![а-яё])(делал\w*|работал\w*|участвовал\w*|вел[аи]?|выполнял\w*|опыт\w*)(?![а-яё])")
+# слова, которые не задают тему вопроса-перечисления
+_ROUTER_NEUTRAL = {"прое", "проп", "кейс", "опыт", "рабо", "отра", "сфер", "обла", "сект", "году", "года", "годы",
+                   "пери", "реес", "спис", "пере", "пока", "назо", "выве", "скол", "дела", "выпо", "реал", "вели",
+                   "наше", "наши", "всег", "посл", "нача", "ране", "позж", "пред", "мног", "боль", "чаще", "наиб",
+                   "самы", "лиде", "рейт", "эксп", "сотр", "люди", "люде", "сдел", "учас", "кого", "делал",
+                   "темы", "теме", "направ", "текущ", "этом", "прош", "лет", "года"}
+
 _CITATION = re.compile(r"(?i)фрагмент\w*\s*((?:\d+\s*(?:,|и|;)\s*)*\d+)")
 _BRACKET_REF = re.compile(r"\[\s*Фрагмент\s+(\d+)\s*\]")
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:[ \u00a0]\d{3})*(?:[.,]\d+)?")
@@ -74,7 +100,7 @@ class KBAgent:
 
         self.llm = llm if llm is not None else create_backend(config.get("llm", {}))
         factory = retriever_factory or self._default_retriever_factory(config)
-        self.tools = ToolRegistry(factory, config.get("tools", {}))
+        self.tools = ToolRegistry(factory, config.get("tools", {}), catalog_path=config.get("catalog_path"))
 
         self._schemas: Optional[List[Dict[str, Any]]] = None
         self._facets_summary: Optional[Dict[str, Any]] = None
@@ -129,10 +155,18 @@ class KBAgent:
                       rule="параметры пользователя подставляются в tool поверх значений LLM")
 
         state.followup_terms = self._followup_terms(query)
+        state.followup_cards = self._previous_cards_for(query)
+        if state.followup_cards:
+            trace.add("decision", point="followup_cards", cards=len(state.followup_cards),
+                      rule="вопрос ссылается на прошлый ответ: поиск ограничен карточками, которые в нём цитировались")
         if state.followup_terms:
             trace.add("decision", point="followup_context", terms=state.followup_terms,
                       rule="уточняющий вопрос: термины темы из памяти будут добавлены в query поиска, "
                            "если модель их не включила")
+
+        routed = self._route_catalog(query, state, trace, started)
+        if routed is not None:
+            return routed
 
         tool_schemas = self._tool_schemas(trace)
 
@@ -213,7 +247,9 @@ class KBAgent:
         """Схемы инструментов с допустимыми значениями фильтров из индекса; строятся один раз."""
         if self._schemas is None:
             facets = self.tools.facets()
-            self._schemas = P.build_tool_schemas(facets)
+            catalog = self.tools.catalog()
+            self._schemas = P.build_tool_schemas(facets, with_catalog=catalog is not None,
+                                                 services=catalog.services() if catalog else None)
             self._facets_summary = {
                 "categories": len((facets or {}).get("categories") or {}),
                 "industries": len((facets or {}).get("industries") or {}),
@@ -252,6 +288,8 @@ class KBAgent:
     def _execute_and_append(self, name: str, arguments: Dict[str, Any], source: str,
                             state: AgentState, trace: Trace, messages: List[Dict[str, Any]]) -> ToolCall:
         args = dict(arguments) if isinstance(arguments, dict) else arguments
+        if name in ("search_knowledge_base", "list_cards") and isinstance(args, dict):
+            self._apply_previous_cards(args, state, trace, bump_top_k=(name == "search_knowledge_base"))
         if name == "search_knowledge_base" and isinstance(args, dict) and "top_k" in state.locked_params:
             if args.get("top_k") != state.locked_params["top_k"]:
                 trace.add("decision", point="apply_locked_param", param="top_k",
@@ -274,6 +312,22 @@ class KBAgent:
         call.latency_ms = latency
         state.tool_calls.append(call)
 
+        if (result.get("status") != "success" and name == "search_knowledge_base" and source == "llm"
+                and result.get("error_code") == "invalid_argument"
+                and result.get("argument") in ("industry", "category", "year_from", "year_to")
+                and isinstance(args, dict)):
+            # фильтр придумала модель, а не пользователь: не обрываем ответ, ищем без него
+            bad = result["argument"]
+            trace.add("decision", point="drop_invalid_filter", argument=bad, value=args.get(bad),
+                      reason=result.get("error"), action="повтор поиска без этого фильтра")
+            state.warnings.append(f"фильтр {bad}={args.get(bad)!r} отклонён ({result.get('error')}); "
+                                  f"поиск выполнен без него")
+            retry_args = {k: v for k, v in args.items() if k != bad}
+            call.arguments = retry_args
+            trace.add("tool_call", name=name, arguments=retry_args, source="filter_dropped", iteration=state.iteration)
+            result, latency = self.tools.execute(name, retry_args)
+            call.latency_ms += latency
+
         if result.get("status") != "success":
             call.status, call.error_code, call.error = "error", result.get("error_code"), result.get("error")
             state.last_tool_error = call
@@ -293,6 +347,13 @@ class KBAgent:
             }
             trace.add("tool_result", name=name, latency_ms=latency, **call.result_summary)
             content = format_fragments(fragments, result["query"])
+        elif name == "list_cards":
+            call.status = "success"
+            state.cards_result = result
+            call.result_summary = {"total": result["total"], "shown": result["shown"], "filters": result["filters"],
+                                   "include_people": result["include_people"]}
+            trace.add("tool_result", name=name, latency_ms=latency, **call.result_summary)
+            content = f"Карточек по условиям: {result['total']} (показано {result['shown']}).\n{result['text']}"
         else:
             call.status = "success"
             state.documents_listed = True
@@ -364,6 +425,13 @@ class KBAgent:
         text = (text or "").strip()
         has_search = bool(state.successful_calls("search_knowledge_base"))
 
+        if not has_search and state.cards_result is not None:
+            result = state.cards_result
+            answer = text or self._catalog_answer(result, "")
+            trace.add("validation", kind="catalog", ok=True)
+            return self._finish(state, trace, started, STATUS_ANSWERED if result["total"] else STATUS_NOT_FOUND,
+                                answer, sources=self._card_sources(result["cards"]))
+
         if not has_search and not state.documents_listed:
             # сюда попадаем, только если все вызовы tools завершились ошибкой и LLM ответила текстом
             if state.last_tool_error is not None:
@@ -424,6 +492,188 @@ class KBAgent:
             text = text.rstrip() + "\n\n" + "\n".join(notes)
         return self._finish(state, trace, started, STATUS_ANSWERED, text, sources=sources)
 
+    # ------------------------------------------------------------------ маршрутизатор по каталогу
+
+    def _route_catalog(self, query: str, state: AgentState, trace: Trace, started: float) -> Optional[AgentResponse]:
+        """
+        Вопросы, на которые нужен полный и точный список, отвечаются выборкой из каталога карточек
+        без поиска и без LLM:
+          - люди по карточкам прошлого ответа: «кто выполнял эти проекты», «какие сотрудники это делали»;
+          - перечисление по отрасли, периоду или типу реестра: «какие проекты были в медицине»,
+            «перечисли пропозалы за 2019–2021». Если в вопросе есть другая тема («по закупкам»),
+            он уходит в обычный путь: поиск по смыслу с фильтром.
+        """
+        catalog = self.tools.catalog()
+        if catalog is None:
+            return None
+        industries = detect_industries(query, catalog.industries())
+        services = detect_services(query, catalog.services(), catalog.service_details())
+        if industries and services:
+            # одно слово и отрасль, и услуга («по логистике»): это тема услуги, а не отрасль клиента
+            from agent_tools import INDUSTRY_SYNONYMS, SERVICE_SYNONYMS, covered_words, tag_keys
+            service_phrases = [p for sv in services for p in SERVICE_SYNONYMS.get(sv, []) + tag_keys(sv) + [sv]]
+            service_words = covered_words(query, service_phrases)
+            industries = [ind for ind in industries
+                          if covered_words(query, INDUSTRY_SYNONYMS.get(ind, []) + [ind]) - service_words]
+        persons = catalog.find_person(query)
+        year_from, year_to = detect_period(query)
+        only_proposals = re.search(r"(?i)пропозал|предложени", query) and not re.search(r"(?i)проект", query)
+        card_type = "proposal" if only_proposals else None
+        scope = {k: v for k, v in (("industry", industries), ("service", services), ("person", persons),
+                                   ("year_from", year_from), ("year_to", year_to), ("card_type", card_type)) if v}
+
+        def has_other_topic() -> bool:
+            residual = self._residual_topic(query, industries, services, persons)
+            if residual:
+                trace.add("decision", point="catalog_route", routed=False, residual=residual,
+                          rule="в вопросе есть тема помимо отрасли, типа услуги и периода — нужен поиск по смыслу")
+            return bool(residual)
+
+        if _AGG.search(query) and (_WHO.search(query) or _PEOPLE.search(query)) and (
+                _REGISTRY_NOUN.search(query) or scope):
+            # проверяется первым: «кто делал много проектов в …» — не уточнение прошлого ответа, а подсчёт
+            if has_other_topic():
+                return None
+            args = {**scope, "group_by": "people"}
+            route, intro = "catalog_people_rank", "Кто чаще всего участвовал"
+        elif state.followup_cards and _PEOPLE.search(query) and not scope:
+            args = {"cards": state.followup_cards, "include_people": True}
+            route, intro = "catalog_people", "Люди по карточкам из прошлого ответа"
+        elif (_ENUM.search(query) and _REGISTRY_NOUN.search(query) and scope) or (
+                persons and (_REGISTRY_NOUN.search(query) or _PERSON_WORK.search(query))):
+            # «Проекты Сотрудник за последние 5 лет», «что делал Петров в 2020» — список карточек сотрудника
+            if has_other_topic():
+                return None
+            args = {**scope, "include_people": bool(_PEOPLE.search(query)) and not persons}
+            route, intro = "catalog_list", "В реестрах найдено"
+        else:
+            return None
+
+        state.route = route
+        trace.add("decision", point="catalog_route", routed=True, route=route,
+                  args={k: v for k, v in args.items() if k != "cards"}, cards=len(args.get("cards") or []),
+                  rule="полный список по каталогу карточек вместо top-k поиска; LLM не вызывается")
+        messages: List[Dict[str, Any]] = []
+        call = self._execute_and_append("list_cards", args, "router", state, trace, messages)
+        if call.status != "success":
+            return self._tool_error_response(state, trace, started, call)
+        result = state.cards_result
+        status = STATUS_ANSWERED if result["total"] else STATUS_NOT_FOUND
+        return self._finish(state, trace, started, status, self._catalog_answer(result, intro),
+                            sources=self._card_sources(result["cards"]))
+
+    @staticmethod
+    def _residual_topic(query: str, industries: List[str], services: Optional[List[str]] = None,
+                        persons: Optional[List[str]] = None) -> List[str]:
+        """Содержательные слова вопроса, кроме служебных, отраслевых, типа услуги, фамилий и периода."""
+        from agent_lexical import STOPWORDS, stems
+        from agent_tools import INDUSTRY_SYNONYMS, SERVICE_SYNONYMS, _matches_synonyms, covered_words
+        phrases = [p for category in industries for p in INDUSTRY_SYNONYMS.get(category, []) + [category]]
+        phrases += [p for service in services or [] for p in SERVICE_SYNONYMS.get(service, [])]
+        from agent_tools import tag_keys
+        service_stems = {st for service in services or [] for st in stems(service)}
+        phrases += [w for service in services or [] for w in tag_keys(service)]
+        surnames = {p.split()[0].lower() for p in persons or []}
+        covered = covered_words(query, phrases) if phrases else set()
+        residual = []
+        for word in re.findall(r"[a-zа-яё]+", query.lower().replace("ё", "е")):
+            if len(word) < 4 or word in STOPWORDS or word[:4] in _ROUTER_NEUTRAL:
+                continue
+            if word in covered or (phrases and _matches_synonyms(word, phrases)) or _PEOPLE.fullmatch(word):
+                continue           # то же сопоставление, что и при определении отрасли
+            if word[:4] in service_stems or any(word.startswith(sn) for sn in surnames):
+                continue
+            residual.append(word)
+        return residual
+
+    @staticmethod
+    def _catalog_answer(result: Dict[str, Any], intro: str) -> str:
+        from agent_cards import CARD_TYPE_RU, format_card_line
+        filters = result.get("filters") or {}
+        conditions = []
+        if filters.get("industry"):
+            conditions.append("отрасль: " + ", ".join(filters["industry"]))
+        if filters.get("year_from") or filters.get("year_to"):
+            conditions.append(f"период: {filters.get('year_from') or '…'}–{filters.get('year_to') or '…'}")
+        if filters.get("card_type"):
+            conditions.append("тип: " + CARD_TYPE_RU.get(filters["card_type"], filters["card_type"]))
+        if filters.get("service"):
+            conditions.append("тип услуги: " + ", ".join(filters["service"]))
+        if filters.get("person"):
+            conditions.append("сотрудник: " + ", ".join(filters["person"]))
+        cond = f" ({'; '.join(conditions)})" if conditions else ""
+        if not result["total"]:
+            return f"По условиям{cond} карточек в реестрах нет."
+        if result.get("group_by") == "people":
+            by_type = result.get("by_type", {})
+            head = (f"{intro}{cond}. Карточек: {result['total']} (проектов {by_type.get('project', 0)}, "
+                    f"пропозалов {by_type.get('proposal', 0)}), люди указаны в {result['cards_with_people']}, "
+                    f"разных людей: {result['people_total']}.")
+            if not result.get("people"):
+                return head + "\nВ этих карточках люди не указаны."
+            return (head + "\n\n" + result["text"] + "\n\nСортировка по числу проектов: пропозал — это заявка, "
+                    "а не выполненный проект. Учтены поля «Команда», «Партнёр / директор», «Имя сотрудника»; "
+                    "человек считается один раз на карточку.\nИсточник: каталог карточек реестров.")
+        lines = [f"{intro or 'Найдено'}{cond}: {result['total']}."]
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for card in result["cards"]:
+            groups.setdefault(card.get("card_type", ""), []).append(card)
+        titles = {"project": "Проекты", "proposal": "Пропозалы", "project_accounting": "Проекты учётной базы"}
+        for card_type, cards in groups.items():
+            lines.append(f"\n{titles.get(card_type, card_type)} ({len(cards)}):")
+            lines += [format_card_line(i, c, result.get("include_people")) for i, c in enumerate(cards, start=1)]
+        if result["shown"] < result["total"]:
+            lines.append(f"\nПоказаны {result['shown']} из {result['total']}: уточните период, отрасль или тип реестра.")
+        lines.append("\nИсточник: каталог карточек реестров (data/raw_cards/cards_meta.jsonl).")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _card_sources(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        keys = ("card_type", "card_id", "card_title", "year", "year_end", "industry")
+        return [{"fragment": i, "document_name": c.get("card_title", ""), "file_name": c.get("file_name", ""),
+                 "category": "", "chunk_index": "—", "score": 1.0,
+                 "card": {k: c[k] for k in keys if c.get(k) not in (None, "", [])}}
+                for i, c in enumerate(cards, start=1)]
+
+    def _previous_cards_for(self, query: str) -> List[Dict[str, str]]:
+        """
+        Карточки прошлого ответа, если текущий вопрос к ним относится:
+        - есть отсылка («эти проекты», «их», «по ним», «перечисленные»);
+        - или это короткое уточнение с «а/и/ещё» («А по людям?», «А сроки?»), в котором нет
+          новой области поиска: отрасли из индекса, года, типа реестра.
+        «А в энергетике?» или «А пропозалы?» — новый поиск, а не уточнение.
+        """
+        cards = self.memory.last_cards()
+        if not cards:
+            return []
+        if _ANAPHORA.search(query):
+            return cards
+        if _SHORT_FOLLOWUP.search(query) and len(query.split()) <= 5 and not _SCOPE_WORDS.search(query):
+            facets = self.tools.facets() or {}
+            industry_stems = {st for name in (facets.get("industries") or {}) for st in stems(name)}
+            if not set(stems(query)) & industry_stems:
+                return cards
+        return []
+
+    def _apply_previous_cards(self, args: Dict[str, Any], state: AgentState, trace: Trace,
+                              bump_top_k: bool = True) -> None:
+        """Подставляет в поиск фильтр по карточкам прошлого ответа (по правилу агента или по запросу модели)."""
+        requested = args.pop("previous_results", None)
+        cards = state.followup_cards
+        if requested in (True, "true", "True", 1) and not cards:
+            cards = self.memory.last_cards()
+            trace.add("decision", point="previous_results", requested_by="llm", cards=len(cards),
+                      applied=bool(cards))
+        if not cards:
+            return
+        args["cards"] = cards
+        if bump_top_k and "top_k" not in state.locked_params:
+            try:
+                current = int(args.get("top_k") or self.tools.default_top_k)
+            except (TypeError, ValueError):
+                return          # некорректный top_k от модели отклонит сам инструмент
+            args["top_k"] = min(self.tools.max_top_k, max(current, 2 * len(cards)))
+
     def _followup_terms(self, query: str, max_terms: int = 6) -> List[str]:
         """
         Ключевые слова предыдущего вопроса, которых нет в текущем, — только для
@@ -483,6 +733,13 @@ class KBAgent:
     def _finish(self, state: AgentState, trace: Trace, started: float, status: str, answer: str,
                 error_code: Optional[str] = None, sources: Optional[List[Dict[str, Any]]] = None,
                 remember: bool = True) -> AgentResponse:
+        if status == STATUS_ANSWERED and sources:
+            cited_cards = [{"card_type": s["card"]["card_type"], "card_id": s["card"]["card_id"],
+                            "card_title": s["card"].get("card_title", "")}
+                           for s in sources if s.get("card", {}).get("card_type") and s["card"].get("card_id")]
+            if cited_cards:
+                self.memory.remember_cards(cited_cards)
+                trace.add("memory", action="remember_cards", cards=len(cited_cards))
         if remember and status in (STATUS_ANSWERED, STATUS_NOT_FOUND, STATUS_SMALLTALK, STATUS_DEGRADED):
             before = len(self.memory)
             self.memory.add_turn(state.query, answer)

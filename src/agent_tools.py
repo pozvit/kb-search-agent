@@ -21,6 +21,7 @@ list_documents()
 """
 
 import inspect
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -134,7 +135,7 @@ def build_qdrant_filter(category: Optional[str], filters: Optional[Dict[str, Any
     фильтр по году или отрасли не попадают — фильтр по сути означает «реестры».
     """
     filters = filters or {}
-    if not category and not any(filters.get(k) for k in ("year_from", "year_to", "industry")):
+    if not category and not any(filters.get(k) for k in ("year_from", "year_to", "industry", "cards")):
         return None
     from qdrant_client.http import models
     must = []
@@ -146,6 +147,14 @@ def build_qdrant_filter(category: Optional[str], filters: Optional[Dict[str, Any
         must.append(models.FieldCondition(key="year", range=models.Range(lte=filters["year_to"])))
     if filters.get("industry"):
         must.append(models.FieldCondition(key="industry", match=models.MatchAny(any=list(filters["industry"]))))
+    if filters.get("cards"):
+        # ID карточек уникальны только внутри своего реестра, поэтому пара (card_type, card_id)
+        must.append(models.Filter(should=[
+            models.Filter(must=[
+                models.FieldCondition(key="card_type", match=models.MatchValue(value=c["card_type"])),
+                models.FieldCondition(key="card_id", match=models.MatchValue(value=c["card_id"])),
+            ]) for c in filters["cards"]
+        ]))
     return models.Filter(must=must)
 
 
@@ -163,7 +172,180 @@ def payload_matches(meta: Dict[str, Any], category: Optional[str], filters: Opti
     if filters.get("industry"):
         if not set(meta.get("industry") or []) & set(filters["industry"]):
             return False
+    if filters.get("cards"):
+        if not any(meta.get("card_type") == c["card_type"] and str(meta.get("card_id")) == str(c["card_id"])
+                   for c in filters["cards"]):
+            return False
     return True
+
+
+# Русские синонимы отраслевых категорий реестров: для сопоставления значений от модели и
+# для подсказок в описании инструмента. Ключи — значения поля industry в индексе.
+INDUSTRY_SYNONYMS = {
+    "Pharma & HC": ["медицина", "здравоохранение", "фармацевтика", "фарма", "клиники", "больницы"],
+    "Energy (O&G / chem / utilities)": ["энергетика", "нефтегаз", "нефтянка", "нефтяная", "нефть", "газ", "газовая", "химия",
+                                        "электроэнергетика", "ЖКХ", "ТЭК"],
+    "Industrial goods": ["промышленность", "металлургия", "горнодобывающая", "машиностроение", "ОПК"],
+    "Transportation": ["транспорт", "логистика", "перевозки", "железная дорога", "ЖД", "авиация"],
+    "Telecom & Media & IT": ["телеком", "медиа", "ИТ", "IT", "телекоммуникации"],
+    "Public": ["госсектор", "государство", "государственный", "некоммерческий", "наука"],
+    "Consumer goods & retail": ["ритейл", "розница", "торговля", "магазины", "потребительские товары", "FMCG",
+                                "туризм", "агро", "сельское хозяйство"],
+    "Financial services": ["финансы", "банки", "банк", "страхование"],
+    "Construction & Real estate": ["строительство", "недвижимость", "девелопмент"],
+}
+
+
+# Синонимы типов услуг (поле «Тип услуги» реестров). Тип распознаётся по всем значимым словам названия
+# («операционной эффективности») или по синониму.
+SERVICE_SYNONYMS = {
+    "Операционная эффективность": ["операционка", "операционные улучшения", "бережливое производство", "lean"],
+    "Стратегия": ["стратегический", "стратегическое"],
+    "Организационное развитие / HR": ["HR", "персонал", "кадры", "оргструктура", "организационная структура"],
+    "Маркетинг и продажи": ["маркетинг", "продажи", "коммерческая функция"],
+    "Digital": ["цифровизация", "цифровая трансформация", "диджитал"],
+    "Корпоративные финансы и инвестиции": ["корпоративные финансы", "M&A", "сделки", "инвестиционный"],
+    "Экономические исследования": ["исследование рынка", "экономическое исследование", "маркетинговое исследование"],
+    "Законодательное регулирование": ["регулирование", "законодательство", "нормативное"],
+}
+
+
+# общие слова в названиях детальных тегов: по ним одним тег не распознаём
+TAG_GENERIC = {"управление", "разработка", "стратегия", "оптимизация", "развитие", "анализ", "внедрение",
+               "поддержка", "обзор", "корпоративная", "корпоративное", "функциональная", "отраслевая",
+               "отраслевое", "проектами", "программами", "решения", "лучшие", "практики", "модели",
+               "модель", "структура", "система", "систем", "бизнес", "процессов", "бизнес-процессов",
+               "проект", "проекта", "проекты", "проектов", "проектный", "проектная", "офис"}
+
+
+def tag_keys(tag: str) -> List[str]:
+    """Значимые слова детального тега: «Закупки / управление поставщиками» -> ["закупки", "поставщиками"]."""
+    words = [w for w in _words(tag) if len(w) >= 4 and w not in TAG_GENERIC]
+    return words
+
+
+def detect_services(text: str, known: List[str], details: Optional[List[str]] = None) -> List[str]:
+    """
+    Типы услуг (все значимые слова названия или синоним) и детальные теги услуг
+    (хотя бы одно значимое слово тега), названные в вопросе.
+    """
+    from agent_lexical import stems
+    q_words = _words(text)
+    q_stems = set(stems(text))
+    found, consumed = [], set()
+    for service in known:
+        name_stems = set(stems(service))
+        synonyms = SERVICE_SYNONYMS.get(service, [])
+        if (name_stems and name_stems <= q_stems) or _matches_synonyms(text, synonyms):
+            found.append(service)
+            consumed |= {w for w in q_words if w[:4] in name_stems or _matches_synonyms(w, synonyms)}
+    for tag in details or []:
+        keys = tag_keys(tag)
+        if tag in found or not keys:
+            continue
+        matched = {w for w in q_words if _matches_synonyms(w, keys)}
+        # тег берём, только если его зацепило слово, которое не объясняется уже найденным типом услуги:
+        # «операционной эффективности» — тип, а не ещё и тег «КПЭ / Управление эффективностью»
+        if matched - consumed:
+            found.append(tag)
+    return found
+
+
+def covered_words(text: str, phrases: List[str]) -> set:
+    """Слова текста, которые объясняются фразами-синонимами, найденными в тексте (для многословных — все их слова)."""
+    words = _words(text)
+    covered = set()
+    for phrase in phrases:
+        if _matches_synonyms(text, [phrase]):
+            keys = [_syn_key(w) for w in _words(phrase) if len(w) >= 2]
+            covered |= {w for w in words if any(_syn_match(w, k) for k in keys)}
+    return covered
+
+
+# слова, которые в вопросе чаще обозначают тему, а не отрасль («ИТ-стратегия»): по тексту вопроса их не распознаём
+DETECT_EXCLUDE = {"ит", "it"}
+
+
+def _words(text: str) -> List[str]:
+    return re.findall(r"[a-zа-яё]+", text.lower().replace("ё", "е"))
+
+
+def _syn_key(word: str) -> str:
+    """
+    Ключ синонима: до 5 букв — слово целиком («банк», «газ», «медиа»), 6–7 букв — первые 5 («закуп»),
+    от 8 букв — первые 6 («трансп», «медици»): по 5 буквам «транспорт» совпадал с «трансформацией».
+    """
+    if len(word) <= 5:
+        return word
+    return word[:5] if len(word) <= 7 else word[:6]
+
+
+def _syn_match(word: str, key: str) -> bool:
+    """Слово вопроса начинается с ключа синонима: «банках» ~ «банк», «медицине» ~ «медиц», но не ~ «медиа»."""
+    if len(key) <= 3:                 # «газ», «жкх», «тэк»: допускаем только окончания («газа», «газовой» — нет)
+        return word.startswith(key) and len(word) <= len(key) + 2
+    return word.startswith(key)
+
+
+def _matches_synonyms(text: str, phrases: List[str], exclude: set = frozenset()) -> bool:
+    """
+    Есть ли в тексте хотя бы одна фраза-синоним. Многословная фраза засчитывается, только если в тексте есть
+    ВСЕ её значимые слова: иначе «цифровая трансформация» срабатывала на «транспорте» по слову «трансформация».
+    """
+    words = [w for w in _words(text) if w not in exclude]
+    for phrase in phrases:
+        keys = [_syn_key(w) for w in _words(phrase) if len(w) >= 2]
+        if keys and all(any(_syn_match(w, k) for w in words) for k in keys):
+            return True
+    return False
+
+
+def detect_industries(text: str, known: List[str]) -> List[str]:
+    """Отрасли, названные в вопросе словами: «в медицине» -> Pharma & HC. Только по синонимам и названиям категорий."""
+    found = []
+    for category in known:
+        phrases = INDUSTRY_SYNONYMS.get(category, []) + re.findall(r"[A-Za-z]{4,}", category)
+        if _matches_synonyms(text, phrases, DETECT_EXCLUDE):
+            found.append(category)
+    return found
+
+
+NUMBER_WORDS = {"один": 1, "одного": 1, "два": 2, "двух": 2, "три": 3, "трёх": 3, "трех": 3, "четыре": 4,
+                "четырёх": 4, "четырех": 4, "пять": 5, "пяти": 5, "шесть": 6, "шести": 6, "семь": 7, "семи": 7,
+                "восемь": 8, "восьми": 8, "десять": 10, "десяти": 10}
+
+
+def detect_period(text: str, current_year: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    """
+    «за 2020–2023», «с 2018 по 2021», «после 2019», «до 2015», «в 2020 году» -> (год_с, год_по);
+    относительные: «за последние 5 лет» -> (текущий−4, текущий), «в прошлом году», «в этом году», «за последний год».
+    """
+    import datetime
+    year = current_year or datetime.date.today().year
+    t = text.lower().replace("ё", "е")
+    m = re.search(r"последни[еx]\s+(\d{1,2}|[а-я]+)\s+(лет|года|год)", t)
+    if m:
+        n = int(m.group(1)) if m.group(1).isdigit() else NUMBER_WORDS.get(m.group(1))
+        if n:
+            return year - n + 1, year
+    if re.search(r"последн(ий|ие)\s+год|прошл(ый|ом|ого)\s+год", t):
+        return (year - 1, year) if "последн" in t else (year - 1, year - 1)
+    if re.search(r"(этом|текущем|нынешнем)\s+году|(этот|текущий)\s+год", t):
+        return year, year
+    m = re.search(r"((?:19|20)\d{2})\s*(?:-|–|—|по|до)\s*((?:19|20)\d{2})", t)
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        return min(a, b), max(a, b)
+    m = re.search(r"(?:после|позже|начиная с|с)\s+((?:19|20)\d{2})", t)
+    if m:
+        return int(m.group(1)) + (1 if "после" in m.group(0) or "позже" in m.group(0) else 0), None
+    m = re.search(r"(?:до|раньше|ранее)\s+((?:19|20)\d{2})", t)
+    if m:
+        return None, int(m.group(1)) - 1
+    m = re.search(r"(?<!\d)((?:19|20)\d{2})(?!\d)", t)
+    if m:
+        return int(m.group(1)), int(m.group(1))
+    return None, None
 
 
 RetrieverFactory = Callable[[], Any]
@@ -174,9 +356,13 @@ RetrieverFactory = Callable[[], Any]
 # ---------------------------------------------------------------------------
 
 class ToolRegistry:
-    def __init__(self, retriever_factory: RetrieverFactory, tool_config: Dict[str, Any]):
+    def __init__(self, retriever_factory: RetrieverFactory, tool_config: Dict[str, Any],
+                 catalog_path: Optional[str] = None):
         self._factory = retriever_factory
         self._retriever = None
+        self._catalog_path = catalog_path
+        self._catalog = None
+        self.max_cards_listed = int(tool_config.get("list_cards", {}).get("max_items", 50))
         search_cfg = tool_config.get("search", {})
         self.default_top_k = int(search_cfg.get("default_top_k", 4))
         self.max_top_k = int(search_cfg.get("max_top_k", 10))
@@ -186,6 +372,8 @@ class ToolRegistry:
             "search_knowledge_base": self.search_knowledge_base,
             "list_documents": self.list_documents,
         }
+        if catalog_path:
+            self._handlers["list_cards"] = self.list_cards
 
     @property
     def names(self) -> List[str]:
@@ -201,8 +389,13 @@ class ToolRegistry:
             result = _error("invalid_argument", f"Аргументы должны быть объектом, получено {type(arguments).__name__}.")
         else:
             try:
-                result = handler(**{k: v for k, v in arguments.items()
-                                    if k in ("query", "top_k", "category", "year_from", "year_to", "industry")})
+                allowed = {
+                    "search_knowledge_base": ("query", "top_k", "category", "year_from", "year_to", "industry", "cards"),
+                    "list_documents": (),
+                    "list_cards": ("card_type", "industry", "service", "person", "year_from", "year_to",
+                                   "include_people", "group_by", "cards", "limit"),
+                }[name]
+                result = handler(**{k: v for k, v in arguments.items() if k in allowed})
             except TypeError as exc:
                 result = _error("invalid_argument", f"Некорректный набор аргументов: {exc}")
             except Exception as exc:  # последний рубеж: tool не должен ронять агента
@@ -294,16 +487,53 @@ class ToolRegistry:
         resolved, unknown = [], []
         for v in items:
             canon = by_lower.get(v.strip().lower())
-            (resolved if canon else unknown).append(canon or v)
+            if not canon:
+                # модель может скопировать значение вместе с синонимами из описания: «Pharma & HC (медицина, …)»
+                canon = by_lower.get(re.sub(r"\s*\([^()]*\)\s*$", "", v).strip().lower())
+            if canon:
+                resolved.append(canon)
+                continue
+            # неточное значение («Здравоохранение», «фармацевтика») — ищем по вхождению и основам слов;
+            # принимаем, только если вариантов немного, иначе просим модель выбрать из списка
+            close = ToolRegistry._close_industries(v, known)
+            if 0 < len(close) <= 3:
+                resolved.extend(c for c in close if c not in resolved)
+            else:
+                unknown.append(v)
         if unknown:
             shown = ", ".join(known[:30]) + (" …" if len(known) > 30 else "")
             return None, f"неизвестная отрасль: {', '.join(unknown)}. Допустимые: {shown}."
         return resolved, None
 
+    @staticmethod
+    def _close_industries(value: str, known: List[str]) -> List[str]:
+        """
+        Неточное значение отрасли -> значения из индекса:
+        вхождение строки («Energy» -> «Energy (O&G / chem / utilities)»), совпадение основ слов,
+        затем русские синонимы категорий («Здравоохранение и фармацевтика», «медицина» -> «Pharma & HC»).
+        """
+        from agent_lexical import stems
+        v = value.strip().lower()
+        if len(v) < 2:
+            return []
+        if len(v) >= 4:
+            by_substring = [k for k in known if v in k.lower() or k.lower() in v]
+            if by_substring:
+                return by_substring
+        v_stems = set(stems(v)) | ({v} if len(v) < 4 else set())
+        by_stems = [k for k in known if v_stems and v_stems <= set(stems(k))]
+        if by_stems:
+            return by_stems
+        # для синонимов основы длиннее: по 4 символам «медицина» и «медиа» совпадают («меди»)
+        return [category for category, words in INDUSTRY_SYNONYMS.items()
+                if category in known and _matches_synonyms(v, words)]
+
     # ----- tools -----
 
     def search_knowledge_base(self, query: Any = None, top_k: Any = None, category: Any = None,
-                              year_from: Any = None, year_to: Any = None, industry: Any = None) -> ToolResult:
+                              year_from: Any = None, year_to: Any = None, industry: Any = None,
+                              cards: Any = None) -> ToolResult:
+        """cards — внутренний параметр агента: [{"card_type", "card_id"}] карточек прошлого ответа."""
         if not isinstance(query, str) or not query.strip():
             return _error("invalid_argument", "query обязателен и должен быть непустой строкой.")
         query = query.strip()
@@ -354,7 +584,11 @@ class ToolRegistry:
             if problem:
                 return _error("invalid_argument", problem, argument="industry")
 
-        filters = {k: v for k, v in (("year_from", y_from), ("year_to", y_to), ("industry", industries)) if v}
+        if cards is not None and not (isinstance(cards, list) and all(
+                isinstance(c, dict) and c.get("card_type") and c.get("card_id") for c in cards)):
+            return _error("invalid_argument", "cards должен быть списком {card_type, card_id}.", argument="cards")
+        filters = {k: v for k, v in (("year_from", y_from), ("year_to", y_to), ("industry", industries),
+                                     ("cards", cards)) if v}
         supports_filters = "filters" in inspect.signature(retriever.search).parameters
         if filters and not supports_filters:
             return _error("invalid_argument", "этот индекс не поддерживает фильтры по году и отрасли.")
@@ -376,6 +610,115 @@ class ToolRegistry:
             "count": len(hits),
             "hits": hits,
         }
+
+    @property
+    def has_catalog(self) -> bool:
+        return self.catalog() is not None
+
+    def catalog(self):
+        if not self._catalog_path:
+            return None
+        if self._catalog is None:
+            try:
+                from agent_cards import CardCatalog
+                self._catalog = CardCatalog(self._catalog_path)
+            except Exception:
+                self._catalog_path = None      # каталога нет — работаем без перечислений
+                return None
+        return self._catalog
+
+    @staticmethod
+    def _parse_named(name: str, value: Any, known: List[str], synonyms: Dict[str, List[str]]
+                     ) -> Tuple[Optional[List[str]], Optional[str]]:
+        """Значение из словаря известных (тип услуги, человек): точное без регистра, затем по словам и синонимам."""
+        if value in (None, "", []):
+            return None, None
+        items = [value] if isinstance(value, str) else value
+        if not isinstance(items, list) or not all(isinstance(v, str) for v in items):
+            return None, f"{name} должен быть строкой или списком строк."
+        by_lower = {k.lower(): k for k in known}
+        resolved, unknown = [], []
+        for v in items:
+            canon = by_lower.get(v.strip().lower()) or \
+                by_lower.get(re.sub(r"\s*\([^()]*\)\s*$", "", v).strip().lower())
+            close = [canon] if canon else detect_services(v, [k for k in known if k in synonyms],
+                                                          [k for k in known if k not in synonyms]) if synonyms else []
+            if close:
+                resolved += [c for c in close if c not in resolved]
+            else:
+                unknown.append(v)
+        if unknown:
+            shown = ", ".join(known[:20]) + (" …" if len(known) > 20 else "")
+            return None, f"неизвестное значение {name}: {', '.join(unknown)}. Допустимые: {shown}."
+        return resolved, None
+
+    def list_cards(self, card_type: Any = None, industry: Any = None, year_from: Any = None,
+                   year_to: Any = None, include_people: Any = False, cards: Any = None,
+                   limit: Any = None, service: Any = None, person: Any = None, group_by: Any = None) -> ToolResult:
+        """
+        Все карточки реестров по условиям (без top_k): для перечислений и подсчётов.
+        group_by="people" — рейтинг людей по числу карточек (проекты и пропозалы отдельно).
+        """
+        from agent_cards import CARD_TYPE_RU, format_card_list, format_people_ranking
+        catalog = self.catalog()
+        if catalog is None:
+            return _error("index_unavailable", "каталог карточек недоступен: выполните python tools/csv_to_cards.py")
+        if card_type not in (None, "") and card_type not in CARD_TYPE_RU:
+            return _error("invalid_argument", f"card_type должен быть одним из: {', '.join(CARD_TYPE_RU)}.",
+                          argument="card_type")
+        y_from, problem = self._parse_year("year_from", year_from)
+        if problem:
+            return _error("invalid_argument", problem, argument="year_from")
+        y_to, problem = self._parse_year("year_to", year_to)
+        if problem:
+            return _error("invalid_argument", problem, argument="year_to")
+        if y_from and y_to and y_from > y_to:
+            return _error("invalid_argument", f"year_from ({y_from}) больше year_to ({y_to}).", argument="year_from")
+        industries = None
+        if industry not in (None, "", []):
+            industries, problem = self._parse_industry(industry, catalog.industries())
+            if problem:
+                return _error("invalid_argument", problem, argument="industry")
+        services, problem = self._parse_named("service", service, catalog.services() + catalog.service_details(),
+                                              SERVICE_SYNONYMS)
+        if problem:
+            return _error("invalid_argument", problem, argument="service")
+        persons = None
+        if person not in (None, "", []):
+            items = [person] if isinstance(person, str) else person
+            persons = [p for v in items for p in (catalog.find_person(v) or [catalog.person_key(v)])]
+        if group_by not in (None, "", "people"):
+            return _error("invalid_argument", "group_by поддерживает только значение people.", argument="group_by")
+        n, problem = self._parse_top_k(limit) if limit not in (None, "") else (self.max_cards_listed, None)
+        if problem:
+            n = self.max_cards_listed
+        n = min(max(n, 1), self.max_cards_listed)
+        selected = catalog.select(card_type or None, industries, y_from, y_to,
+                                  cards if isinstance(cards, list) else None, services, persons)
+        people = include_people in (True, "true", "True", 1)
+        filters = {k: v for k, v in (("card_type", card_type), ("industry", industries), ("service", services),
+                                     ("person", persons), ("year_from", y_from), ("year_to", y_to)) if v}
+        result = {
+            "status": "success",
+            "total": len(selected),
+            "shown": min(len(selected), n),
+            "filters": filters,
+            "cards": selected[:n],
+            "text": format_card_list(selected, n, people),
+            "include_people": people,
+            "group_by": group_by or None,
+        }
+        if group_by == "people":
+            ranking = catalog.aggregate_people(selected)
+            top = min(n, 15)
+            result.update({
+                "people": ranking[:top],
+                "people_total": len(ranking),
+                "cards_with_people": sum(1 for c in selected if c.get("_people")),
+                "by_type": {t: sum(1 for c in selected if c.get("card_type") == t) for t in ("project", "proposal")},
+                "text": format_people_ranking(ranking, top),
+            })
+        return result
 
     def list_documents(self) -> ToolResult:
         retriever, failure = self._get_retriever()

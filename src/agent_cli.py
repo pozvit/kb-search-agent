@@ -44,8 +44,8 @@ def _overrides(args) -> dict:
 def _print_response(response, show_trace: bool = False) -> None:
     print()
     print(response.answer)
-    if response.sources and response.status in ("answered", "degraded"):
-        print("\nИсточники:")
+    if response.sources and response.status in ("answered", "degraded") and not (response.route or "").startswith("catalog"):
+        print("\nИспользованные фрагменты:")
         from agent_tools import card_label
         for s in response.sources:
             if s.get("card"):

@@ -103,7 +103,9 @@ class AgentState:
     fragments: List[Fragment] = field(default_factory=list)
     documents_listed: bool = False
     documents_result: Optional[Dict[str, Any]] = None
+    cards_result: Optional[Dict[str, Any]] = None        # результат list_cards (перечисление по каталогу)
     followup_terms: List[str] = field(default_factory=list)   # термины темы из памяти для уточняющего вопроса
+    followup_cards: List[Dict[str, str]] = field(default_factory=list)   # карточки прошлого ответа для «эти проекты»
     last_tool_error: Optional[ToolCall] = None
     llm_error: Optional[str] = None
     warnings: List[str] = field(default_factory=list)
@@ -121,6 +123,7 @@ class AgentState:
             "fragments": len(self.fragments),
             "locked_params": dict(self.locked_params),
             "followup_terms": list(self.followup_terms),
+            "followup_cards": len(self.followup_cards),
             "llm_error": self.llm_error,
         }
 

@@ -38,8 +38,16 @@ class ShortTermMemory:
                 return message["content"]
         return ""
 
+    def remember_cards(self, cards: List[Dict[str, str]]) -> None:
+        """Карточки реестров, на которые ссылался последний ответ: для вопросов «кто делал эти проекты»."""
+        self._last_cards = [dict(c) for c in cards][:50]
+
+    def last_cards(self) -> List[Dict[str, str]]:
+        return [dict(c) for c in getattr(self, "_last_cards", [])]
+
     def clear(self) -> None:
         self._messages.clear()
+        self._last_cards = []
 
     def __len__(self) -> int:
         return len(self._messages)
