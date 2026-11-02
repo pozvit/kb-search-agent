@@ -16,6 +16,7 @@ profiles:
   full:
     rag_config: "config/rag.yaml"
     chunks_jsonl: "data/chunks/chunks.jsonl"
+    cards_meta: "data/raw_cards/cards_meta.jsonl"   # каталог карточек реестров для перечислений (list_cards)
 
 retriever:
   backend: qdrant                 # qdrant — семантический поиск e5 + Qdrant (основной режим);
@@ -44,6 +45,8 @@ tools:
     max_query_chars: 500
   list_documents:
     max_items: 50
+  list_cards:
+    max_items: 50                 # сколько карточек показывать в одном перечислении
 
 context:
   max_chars_per_chunk: 2000

@@ -24,8 +24,14 @@
   - отрасли двух реестров сведены к одной классификации (INDUSTRY_TOP),
     исходные значения тоже сохраняются.
 
+Лист checked (учётная база 2010–2018) по умолчанию исключён: состав людей в нём почти
+не пересекается с реестрами компании, происхождение данных не подтверждено. Его карточки
+собираются только с флагом --include-checked; при обычном запуске ранее собранные карточки
+учётной базы и их метаданные удаляются.
+
 Запуск:
     python tools/csv_to_cards.py                     # data/raw_csv -> data/raw_cards
+    python tools/csv_to_cards.py --include-checked   # вместе с карточками листа checked
     python tools/csv_to_cards.py --out data/raw_kb   # в отдельную папку
     python tools/csv_to_cards.py --anonymized        # без реальных названий, фамилий, сумм и номеров договоров
     python tools/csv_to_cards.py --only projects     # только одна из баз
@@ -100,13 +106,16 @@ SCHEMES = {
 }
 
 # Поля основных таблиц, которые выводятся в карточку как есть: (заголовок CSV, подпись)
+# Люди идут раньше компании: на вопрос «кто делал» модель отвечала названием компании-исполнителя,
+# потому что это поле стояло в карточке первым.
 PLAIN_FIELDS = [
+    ('Команда проекта (из числа действующих сотрудников)', 'Команда (действующие сотрудники)'),
+    ('Партнер/директор (из числа действующих сотрудников)', 'Партнёр / директор'),
+    ('Имя сотрудника', 'Имя сотрудника'),
     ('Внутренний код AC', 'Внутренний код'),
     ('Где реализован (ADL | AC | consulting | industry)', 'Где реализован'),
-    ('Компания, где реализован проект', 'Компания-исполнитель'),
+    ('Компания, где реализован проект', 'Компания, где выполнен проект'),
     ('Наименование (юр.) проекта по Договору', 'Наименование по договору'),
-    ('Команда проекта (из числа действующих сотрудников)', 'Команда'),
-    ('Партнер/директор (из числа действующих сотрудников)', 'Партнёр / директор'),
     ('Примечания, Теги проекта в свободной форме', 'Примечания'),
     ('Примечания, Теги в свободной форме', 'Примечания'),
 ]
@@ -130,7 +139,7 @@ CHECKED_FIELDS = [
 
 # Поля, которые в обезличенном режиме не выводятся
 SENSITIVE_FIELDS = {
-    'Внутренний код AC', 'Компания, где реализован проект',
+    'Внутренний код AC', 'Компания, где реализован проект', 'Имя сотрудника',
     'Наименование (юр.) проекта по Договору',
     'Команда проекта (из числа действующих сотрудников)',
     'Партнер/директор (из числа действующих сотрудников)',
@@ -344,9 +353,27 @@ def build_card(row: Dict[str, str], scheme: Dict[str, Any], number: int,
     if industry_detail.get(ident):
         lines.append(f"Детальные отраслевые теги: {'; '.join(industry_detail[ident])}")
     if not anonymized and team.get(ident):
-        lines.append(f"Участники: {'; '.join(team[ident])}")
+        # таблица участников дублирует поле «Команда»; выводим её, только если в ней есть кто-то ещё
+        team_text = field(row, 'Команда проекта (из числа действующих сотрудников)')
+        extra = [p for p in team[ident] if p not in team_text]
+        if extra:
+            lines.append(f"Участники: {'; '.join(team[ident])}")
 
     status = field(row, 'Статус проекта').capitalize() if kind_checked else ''
+    # люди и компания — для перечислений без поиска (list_cards читает cards_meta.jsonl напрямую)
+    people_re = re.compile(r'[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?\s+[А-ЯЁA-Z]\.(?:\s?[А-ЯЁA-Z]\.)?')
+    team_text = field(row, 'Команда проекта (из числа действующих сотрудников)') or field(row, 'Команда проекта')
+    team_people = people_re.findall(team_text) or split_values(team_text)
+    for person in team.get(ident, []):
+        if person not in team_people:
+            team_people.append(person)
+    meta_people = {} if anonymized else {
+        'team': team_people,
+        'partner': one_line(field(row, 'Партнер/директор (из числа действующих сотрудников)')
+                            or field(row, 'Ответственный партнер')),
+        'employee': one_line(field(row, 'Имя сотрудника')),
+        'company': one_line(field(row, 'Компания, где реализован проект')),
+    }
     meta = {
         'card_number': number,
         'card_type': scheme['card_type'],
@@ -356,8 +383,10 @@ def build_card(row: Dict[str, str], scheme: Dict[str, Any], number: int,
         'year_end': year_end or year,
         'industry': industry_list,
         'service': services,
+        'service_detail': list(service_detail.get(ident, [])),
         'client': client,
         'status': status or None,
+        **{k: v for k, v in meta_people.items() if v},
     }
     return '\n'.join(lines), meta
 
@@ -435,6 +464,17 @@ def update_metadata(meta_path: Path, entries: List[Dict[str, Any]]) -> None:
     print(f"  metadata.yaml: добавлено записей {added}, всего {len(documents)}")
 
 
+def prune_metadata(meta_path: Path, names: set) -> None:
+    """Убирает из metadata.yaml записи об удалённых файлах карточек."""
+    if not meta_path.exists():
+        return
+    data = yaml.safe_load(meta_path.read_text(encoding='utf-8')) or {}
+    documents = data.get('documents', {})
+    for name in names:
+        documents.pop(name, None)
+    meta_path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=120), encoding='utf-8')
+
+
 def file_kind(file_name: str) -> Optional[str]:
     """К какой базе относится файл карточек. Длинный префикс проверяется первым:
     projects_accounting_2018.md — это учётная база, а не основная база проектов."""
@@ -464,6 +504,8 @@ def main() -> int:
     parser.add_argument('--src', default='data/raw_csv', help='папка с CSV')
     parser.add_argument('--out', default='data/raw_cards', help='куда класть карточки')
     parser.add_argument('--only', choices=sorted(SCHEMES), help='собрать только одну из баз')
+    parser.add_argument('--include-checked', action='store_true',
+                        help='собрать и карточки листа checked (по умолчанию исключён из базы)')
     parser.add_argument('--anonymized', action='store_true',
                         help='без реальных названий клиентов, фамилий, сумм и номеров договоров')
     parser.add_argument('--no-metadata', action='store_true',
@@ -474,7 +516,11 @@ def main() -> int:
     if not src.exists():
         raise SystemExit(f"Не найдена папка {src}. Сначала: python tools/xlsb_to_csv.py")
 
-    kinds = [args.only] if args.only else list(SCHEMES)
+    if args.only:
+        kinds = [args.only]
+    else:
+        kinds = [k for k in SCHEMES if k != 'checked' or args.include_checked]
+    excluded = set() if (args.include_checked or args.only == 'checked') else {'checked'}
     entries, card_meta, skipped = [], [], 0
     for kind in kinds:
         print(f"{SCHEMES[kind]['label']}:")
@@ -483,14 +529,22 @@ def main() -> int:
         card_meta += m
         skipped += s
 
-    if entries:
+    # карточки исключённого листа checked убираем вместе с метаданными, даже если их собирали раньше
+    removed = [f for f in out.glob('*.md') if file_kind(f.name) in excluded] if out.exists() else []
+    for f in removed:
+        f.unlink()
+    if removed:
+        print(f"  удалено карточек листа checked: {len(removed)} файлов (вернуть — --include-checked)")
+        prune_metadata(out / 'metadata.yaml', {f.name for f in removed})
+
+    if entries or removed:
         # старые файлы пересобранных баз удаляем, иначе устаревшие карточки попадут в индекс
         fresh = {e['file_name'] for e in entries}
         for old in out.glob('*.md'):
             if file_kind(old.name) in kinds and old.name not in fresh:
                 old.unlink()
-        write_card_meta(out / CARD_META_FILE, card_meta, set(kinds))
-        if not args.no_metadata:
+        write_card_meta(out / CARD_META_FILE, card_meta, set(kinds) | excluded)
+        if not args.no_metadata and entries:
             update_metadata(out / 'metadata.yaml', entries)
 
     total = sum(e['count'] for e in entries)

@@ -15,14 +15,16 @@
   3. Матрицу участия сотрудников разворачивает так же: строка = сотрудник в проекте.
      Сохраняет всех участников, включая уже не работающих в компании.
   4. Справочник клиентов и таблицу наличия материалов — как есть.
-  5. Лист checked (учётная база проектов с описаниями и Key findings) — целиком,
-     с сохранением переносов строк в текстовых полях. Это единственный источник
-     содержательного текста о проектах: в основной таблице есть только названия и теги.
+  5. Лист checked (учётная база 2010–2018) по умолчанию НЕ выгружается: его состав людей
+     почти не пересекается с реестрами компании (5% упоминаний), происхождение данных
+     не подтверждено, и он исключён из базы знаний. Выгрузка — только флагом --include-checked.
+     При обычном запуске ранее выгруженный projects_checked.csv удаляется.
 
 Запуск:
     python tools/xlsb_to_csv.py                       # из data/raw_xlsb в data/raw_csv
     python tools/xlsb_to_csv.py --src X --out Y
-    python tools/xlsb_to_csv.py --skip-financial      # checked без стоимости и номеров договоров
+    python tools/xlsb_to_csv.py --include-checked     # выгрузить лист checked (исключён из базы)
+    python tools/xlsb_to_csv.py --include-checked --skip-financial   # checked без стоимости и номеров договоров
 
 Требуется: pip install pyxlsb
 """
@@ -329,8 +331,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Конвертация .xlsb баз в CSV")
     parser.add_argument('--src', default='data/raw_xlsb', help='папка с .xlsb')
     parser.add_argument('--out', default='data/raw_csv', help='папка для CSV')
+    parser.add_argument('--include-checked', action='store_true',
+                        help='выгрузить лист checked (учётная база 2010–2018; по умолчанию исключён)')
     parser.add_argument('--skip-financial', action='store_true',
-                        help='выгрузить лист checked без стоимости и номеров договоров')
+                        help='с --include-checked: без стоимости и номеров договоров')
     args = parser.parse_args()
 
     src, out = Path(args.src), Path(args.out)
@@ -347,9 +351,15 @@ def main() -> int:
     export_team_matrix(projects, 'Опыт сотрудников', out, 'project_team')
     export_flat(projects, 'Материалы', out, 'project_materials', header_row_idx=1)
     export_flat(projects, 'Клиенты_upd', out, 'clients', header_row_idx=0)
-    export_flat(projects, 'checked', out, 'projects_checked', header_row_idx=0,
-                multiline_cols=CHECKED_MULTILINE,
-                drop_cols=FINANCIAL_COLUMNS if args.skip_financial else None)
+    if args.include_checked:
+        export_flat(projects, 'checked', out, 'projects_checked', header_row_idx=0,
+                    multiline_cols=CHECKED_MULTILINE,
+                    drop_cols=FINANCIAL_COLUMNS if args.skip_financial else None)
+    else:
+        stale = out / 'projects_checked.csv'
+        if stale.exists():
+            stale.unlink()
+            print(f"  {stale.name}: удалён (лист checked исключён из базы; вернуть — --include-checked)")
 
     print("База пропозалов:")
     export_main_table(proposals, 'Основная база', out, 'proposals')
