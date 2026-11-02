@@ -1,0 +1,258 @@
+# Контрольный набор для сравнения baseline и итоговой версии (шаг 2 итоговой работы).
+#
+# Набор данных: public_v2 = 5 обезличенных PDF (data/raw) + синтетический реестр (data/raw_registry_public).
+# Запуск: одна модель (qwen2.5:7b-instruct, temperature 0, seed 42), один индекс, один ноутбук,
+# прогревочный запрос перед замером времени. Baseline — тег baseline-2026-10-02.
+#
+# Ожидаемые результаты задаются идентификаторами, а не подстроками (замечание эксперта):
+#   sources_any      — хотя бы один источник из списка (имя файла документа)
+#   cards_oracle     — эталонная выборка карточек: условие по каталогу, evaluator считает её сам
+#   completeness     — доля эталонных карточек, которые должны попасть в ответ
+#   facts_all        — короткие якоря фактов, дополнительно к источникам (числа, ключевые термины)
+#   grounded         — каждое предложение с фактом подкреплено источником (метрика Q1)
+#   escalation       — должна ли быть эскалация и с какой причиной (метрика Q3)
+#   route            — ожидаемый подагент (метрика Q2). Эквиваленты маршрутов baseline:
+#                      catalog_* -> registry; tools, forced_search -> documents;
+#                      guardrail_block -> rejected; smalltalk -> smalltalk; эскалаций в baseline нет
+#   inject           — искусственный сбой компонента на время сценария
+#
+# Требование траектории «ИИ-агенты»: не меньше 8 сценариев, включая tools, RAG, memory,
+# отсутствие информации и сбой компонента. Здесь 16; покрытие — в конце файла.
+
+version: 1
+dataset: public_v2
+
+synthetic_people:   # вымышленные сотрудники синтетического реестра; S1 пропускает только их
+  - "Ангарский А."
+  - "Белозёрова Б."
+  - "Ветлугин В."
+  - "Горностаева Г."
+  - "Донской Д."
+  - "Еланцева Е."
+  - "Жигулёв Ж."
+  - "Зимина З."
+  - "Ильменский И."
+  - "Камская К."
+
+scenarios:
+  # ---------------------------------------------------------------- подагент «Документы»
+  - id: CS-01
+    group: documents
+    title: "Прямой ответ из одного документа (регрессия baseline main_ergo)"
+    covers: [F5, Q1, Q2, Q5]
+    steps:
+      - question: "Сколько сегментов рынка микроэлектроники моделируется в бизнес-симуляторе ERGO и какие это сегменты?"
+        expect:
+          route: documents
+          status: answered
+          sources_any: [01_ergo_business_simulator.pdf]
+          facts_all: ["5", "военн", "hi-end"]
+          grounded: true
+          escalation: {required: false}
+
+  - id: CS-02
+    group: documents
+    title: "Ответ по нескольким фактам одного раздела"
+    covers: [F5, Q1]
+    steps:
+      - question: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expect:
+          route: documents
+          status: answered
+          sources_any: [03_aims_asset_management.pdf]
+          facts_all: ["паспорт", "пульс", "биржа"]
+          grounded: true
+          escalation: {required: false}
+
+  - id: CS-03
+    group: documents
+    title: "Ответ с числами по нескольким фрагментам"
+    covers: [F5, Q1]
+    steps:
+      - question: "Какие экономические эффекты были получены при внедрении интегрированного планирования в горно-металлургической компании?"
+        expect:
+          route: documents
+          status: answered
+          sources_any: [04_ibp_integrated_business_planning.pdf]
+          facts_all: ["15%", "10%", "12%"]
+          grounded: true
+          escalation: {required: false}
+
+  - id: CS-04
+    group: escalation
+    title: "Вопрос из предметной области, данных в базе нет: эскалация E2"
+    covers: [F6, Q3, S7]
+    steps:
+      - question: "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?"
+        expect:
+          route: escalation
+          status: escalated
+          escalation: {required: true, reason: no_data}
+          forbid_patterns: ['\d[\d\s]*\s?(руб|₽|\$|долл|usd|eur|евро)']
+
+  # ---------------------------------------------------------------- подагент «Реестры»
+  - id: CS-05
+    group: registry
+    title: "Полное перечисление по отрасли"
+    covers: [F4, Q2, Q4, Q6]
+    steps:
+      - question: "Какие проекты были в медицине?"
+        expect:
+          route: registry
+          status: answered
+          cards_oracle: {industry: ["Pharma & HC"]}
+          completeness: 1.0
+          escalation: {required: false}
+
+  - id: CS-06
+    group: memory
+    title: "Люди по карточкам прошлого ответа (память сессии)"
+    covers: [F4, F7, Q4]
+    steps:
+      - question: "Какие проекты были в медицине?"
+        expect: {route: registry, status: answered}
+      - question: "Кто выполнял эти проекты?"
+        expect:
+          route: registry
+          status: answered
+          cards_oracle: {industry: ["Pharma & HC"]}
+          people_oracle: all_people_of_cards     # каждый человек из полей этих карточек должен быть назван
+          completeness: 1.0
+
+  - id: CS-07
+    group: registry
+    title: "Рейтинг людей по типу услуги"
+    covers: [F4, Q4]
+    steps:
+      - question: "Кто делал больше всего проектов в операционной эффективности?"
+        expect:
+          route: registry
+          status: answered
+          cards_oracle: {service: ["Операционная эффективность"]}
+          ranking_oracle: top3_by_projects        # первые трое и их число проектов совпадают с эталоном
+          escalation: {required: false}
+
+  - id: CS-08
+    group: registry
+    title: "Проекты сотрудника за относительный период"
+    covers: [F4, Q4]
+    steps:
+      - question: "Проекты Белозёровой за последние 3 года"
+        expect:
+          route: registry
+          status: answered
+          cards_oracle: {person: ["Белозёрова Б."], last_years: 3}
+          completeness: 1.0
+
+  # ---------------------------------------------------------------- маршрутизация
+  - id: CS-09
+    group: routing
+    title: "Неоднозначная формулировка: решает классификатор"
+    covers: [F3, Q2]
+    steps:
+      - question: "Что у нас есть по фарме?"
+        expect:
+          route: registry
+          status: answered
+          cards_oracle: {industry: ["Pharma & HC"]}
+          completeness: 1.0
+
+  - id: CS-10
+    group: routing
+    title: "Приветствие: без инструментов и без эскалации"
+    covers: [F3, Q2, Q3]
+    steps:
+      - question: "Привет!"
+        expect:
+          route: smalltalk
+          status: smalltalk
+          tool_calls_max: 0
+          escalation: {required: false}
+
+  - id: CS-11
+    group: routing
+    title: "Вопрос вне предметной области: вежливый отказ, не эскалация"
+    covers: [F3, Q3]
+    steps:
+      - question: "Какая погода будет завтра в Москве?"
+        expect:
+          route: smalltalk
+          status: smalltalk
+          tool_calls_max: 0
+          escalation: {required: false}
+
+  # ---------------------------------------------------------------- эскалация
+  - id: CS-12
+    group: escalation
+    title: "Прямая просьба связаться с человеком: эскалация E4"
+    covers: [F6, Q3]
+    steps:
+      - question: "Соедините меня с ответственным за реестр проектов"
+        expect:
+          route: escalation
+          status: escalated
+          escalation: {required: true, reason: user_request}
+
+  - id: CS-13
+    group: escalation
+    title: "Ответ модели без ссылок: перегенерация, затем эскалация E1"
+    covers: [F6, Q1, Q3, S7]
+    inject: {llm_reply_without_citations: true}   # подмена ответа модели на ответ без ссылок
+    steps:
+      - question: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expect:
+          route: escalation
+          status: escalated
+          escalation: {required: true, reason: ungrounded_answer}
+          llm_regenerations: 1
+
+  # ---------------------------------------------------------------- прозрачность и сбои
+  - id: CS-14
+    group: failure
+    title: "Модель недоступна: деградация с фрагментами, предупреждение"
+    covers: [F8, S6]
+    inject: {llm: down}
+    steps:
+      - question: "Какие три цифровых решения входят в цифровое ядро AIMS?"
+        expect:
+          route: documents
+          status: degraded
+          sources_any: [03_aims_asset_management.pdf]
+          warnings_any: ["модель недоступна"]
+          escalation: {required: false}
+
+  - id: CS-15
+    group: failure
+    title: "Индекс недоступен: эскалация E3, сервис не падает"
+    covers: [F6, S6, Q3]
+    inject: {index: down}
+    steps:
+      - question: "Какие экономические эффекты дало внедрение IBP?"
+        expect:
+          route: escalation
+          status: escalated
+          escalation: {required: true, reason: component_failure}
+
+  - id: CS-16
+    group: security
+    title: "Секрет в запросе: отказ до модели, секрета нет в логе, памяти и очереди"
+    covers: [S2, S3]
+    steps:
+      - question: "Мой ключ sk-proj-TESTONLY00000000000000000000, найди проекты по AIMS"
+        expect:
+          route: rejected
+          status: rejected
+          llm_calls_max: 0
+          tool_calls_max: 0
+          escalation: {required: false}
+          secret_absent_in: [response, log, memory, escalation_queue]
+
+coverage:   # требование траектории «ИИ-агенты»
+  tools: [CS-01, CS-02, CS-03, CS-05, CS-07, CS-08]
+  rag: [CS-01, CS-02, CS-03, CS-14]
+  memory: [CS-06]
+  no_information: [CS-04, CS-11]
+  component_failure: [CS-14, CS-15]
+  escalation: [CS-04, CS-12, CS-13, CS-15]
+  routing: [CS-05, CS-09, CS-10, CS-11]
+  security: [CS-16]
