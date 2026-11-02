@@ -1,0 +1,91 @@
+documents:
+  projects_2018.md:
+    document_name: Проекты 2018
+    category: internal/projects
+    version: '2018'
+    source_type: internal_registry
+  projects_2019.md:
+    document_name: Проекты 2019
+    category: internal/projects
+    version: '2019'
+    source_type: internal_registry
+  projects_2020.md:
+    document_name: Проекты 2020
+    category: internal/projects
+    version: '2020'
+    source_type: internal_registry
+  projects_2021.md:
+    document_name: Проекты 2021
+    category: internal/projects
+    version: '2021'
+    source_type: internal_registry
+  projects_2022.md:
+    document_name: Проекты 2022
+    category: internal/projects
+    version: '2022'
+    source_type: internal_registry
+  projects_2023.md:
+    document_name: Проекты 2023
+    category: internal/projects
+    version: '2023'
+    source_type: internal_registry
+  projects_2024.md:
+    document_name: Проекты 2024
+    category: internal/projects
+    version: '2024'
+    source_type: internal_registry
+  projects_2025.md:
+    document_name: Проекты 2025
+    category: internal/projects
+    version: '2025'
+    source_type: internal_registry
+  projects_2026.md:
+    document_name: Проекты 2026
+    category: internal/projects
+    version: '2026'
+    source_type: internal_registry
+  proposals_2018.md:
+    document_name: Пропозалы 2018
+    category: internal/proposals
+    version: '2018'
+    source_type: internal_registry
+  proposals_2019.md:
+    document_name: Пропозалы 2019
+    category: internal/proposals
+    version: '2019'
+    source_type: internal_registry
+  proposals_2020.md:
+    document_name: Пропозалы 2020
+    category: internal/proposals
+    version: '2020'
+    source_type: internal_registry
+  proposals_2021.md:
+    document_name: Пропозалы 2021
+    category: internal/proposals
+    version: '2021'
+    source_type: internal_registry
+  proposals_2022.md:
+    document_name: Пропозалы 2022
+    category: internal/proposals
+    version: '2022'
+    source_type: internal_registry
+  proposals_2023.md:
+    document_name: Пропозалы 2023
+    category: internal/proposals
+    version: '2023'
+    source_type: internal_registry
+  proposals_2024.md:
+    document_name: Пропозалы 2024
+    category: internal/proposals
+    version: '2024'
+    source_type: internal_registry
+  proposals_2025.md:
+    document_name: Пропозалы 2025
+    category: internal/proposals
+    version: '2025'
+    source_type: internal_registry
+  proposals_2026.md:
+    document_name: Пропозалы 2026
+    category: internal/proposals
+    version: '2026'
+    source_type: internal_registry

@@ -20,6 +20,9 @@ def run_chunk_pipeline(config_path: str):
     chunk_overlap = chunk_config['chunk_overlap']
     split_long = chunk_config.get('split_long_sentences', True)
     merge_short = chunk_config.get('merge_short_sections', True)
+    # Карточки реестров никогда не склеиваются: одна карточка — один раздел — один чанк,
+    # иначе метаданные (год, отрасль, люди) получает только первая карточка в склеенном чанке.
+    no_merge_categories = tuple(chunk_config.get('no_merge_categories', ['internal/']))
     card_meta_paths = config['paths'].get('card_metadata') or []
     if isinstance(card_meta_paths, str):
         card_meta_paths = [card_meta_paths]
@@ -45,8 +48,10 @@ def run_chunk_pipeline(config_path: str):
         # до payload Qdrant и попасть в ответ RAG. Чанк-специфичные ключи
         # ниже перезаписывают одноимённые поля документа.
         original_meta = dict(doc['metadata'])
+        category = str((doc.get('metadata') or {}).get('category', ''))
+        merge_this = merge_short and not category.startswith(no_merge_categories)
         chunks_data = chunk_document(text, strategy, chunk_size, chunk_overlap, split_long,
-                                      merge_short)
+                                      merge_this)
         
         for chunk_info in chunks_data:
             chunk_text = chunk_info['text']

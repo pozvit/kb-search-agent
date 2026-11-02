@@ -13,6 +13,7 @@ profiles:
   public:
     rag_config: "config/public/rag.yaml"
     chunks_jsonl: "data/public/chunks/chunks.jsonl"
+    cards_meta: "data/raw_registry_public/cards_meta.jsonl"   # синтетический реестр (public_v2)
   full:
     rag_config: "config/rag.yaml"
     chunks_jsonl: "data/chunks/chunks.jsonl"

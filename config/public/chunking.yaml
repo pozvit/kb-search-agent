@@ -2,6 +2,9 @@
 paths:
   input_jsonl: "data/public/prepared/prepared_documents.jsonl"
   output_jsonl: "data/public/chunks/chunks.jsonl"
+  # метаданные карточек синтетического реестра: тип, год, отрасль, услуги — для фильтров и каталога
+  card_metadata:
+    - "data/raw_registry_public/cards_meta.jsonl"
 
 chunking:
   strategy: section

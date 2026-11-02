@@ -5,9 +5,11 @@
 paths:
   raw_dirs:
     - "data/raw"
+    - "data/raw_registry_public"     # синтетический реестр (tools/make_synthetic_registry.py)
   prepared_dir: "data/public/prepared"
   metadata_files:
     - "data/raw/metadata.yaml"
+    - "data/raw_registry_public/metadata.yaml"
 
 cleaning:
   remove_extra_spaces: true
