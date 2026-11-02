@@ -1,0 +1,3068 @@
+{
+  "created_at": "2026-11-02T13:35:48+00:00",
+  "agent_name": "KB Search Agent",
+  "environment": {
+    "profile": "public",
+    "llm_backend": "ollama",
+    "llm_model": "qwen2.5:7b-instruct",
+    "retriever": "qdrant",
+    "embeddings": "intfloat/multilingual-e5-small",
+    "python": "3.12.10",
+    "platform": "Windows-11"
+  },
+  "passed": false,
+  "summary": {
+    "total": 12,
+    "passed": 11,
+    "failed": 1,
+    "by_type": {
+      "main": {
+        "total": 2,
+        "passed": 1
+      },
+      "alternative": {
+        "total": 3,
+        "passed": 3
+      },
+      "error": {
+        "total": 4,
+        "passed": 4
+      },
+      "tool_failure": {
+        "total": 2,
+        "passed": 2
+      },
+      "recovery": {
+        "total": 1,
+        "passed": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "scenario_id": "main_aims",
+      "type": "main",
+      "title": "Факт из документа: цифровое ядро AIMS",
+      "goal": "Агент вызывает поиск, находит раздел AIMS и перечисляет три решения со ссылкой на фрагмент",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "search_knowledge_base",
+        "answer_llm",
+        "validate_citations",
+        "respond"
+      ],
+      "decision_points": [
+        "guardrails: запрос допустим",
+        "plan: LLM выбирает search_knowledge_base (иначе — forced_search)",
+        "validate: ссылки только на реально полученные фрагменты"
+      ],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 408250,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+          "expected": "Tool вызван, в ответе цифровой паспорт, цифровой пульс и цифровая биржа; источник — 03_aims",
+          "passed": true,
+          "status": "answered",
+          "error_code": null,
+          "answer": "Цифровое ядро AIMS включает три ключевых решения:\n\n1. Цифровой паспорт актива — единый источник правды об активе на всех стадиях жизненного цикла.\n2. Цифровой пульс актива — моделирует воздействия на актив и помогает принять оптимальное решение.\n3. Цифровая биржа имущества — перераспределяет активы туда, где они приносят наибольшую ценность.\n\nИсточники: [Фрагмент 1, Фрагмент 1]",
+          "sources": [
+            {
+              "fragment": 1,
+              "document_name": "AIMS — Asset Intelligence Management System 2.0",
+              "file_name": "03_aims_asset_management.pdf",
+              "category": "products/asset_management",
+              "chunk_index": 4,
+              "score": 0.9171
+            }
+          ],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "цифровые решения входят в цифровое ядро AIMS",
+                "top_k": 3
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 3,
+                "fragments_in_context": 3,
+                "top_k": 3,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3
+                ],
+                "top_score": 0.9171,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              },
+              "latency_ms": 407,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "answered",
+              "actual": "answered"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "forbidden_tool:list_documents",
+              "passed": true,
+              "expected": "не вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "tool_calls_count",
+              "passed": true,
+              "expected": "1..3",
+              "actual": 1
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 4",
+              "actual": 2
+            },
+            {
+              "name": "no_tool_errors",
+              "passed": true,
+              "expected": [],
+              "actual": []
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "паспорт",
+                "пульс",
+                "биржа"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "sources_include:03_aims_asset_management",
+              "passed": true,
+              "expected": "03_aims_asset_management",
+              "actual": [
+                "03_aims_asset_management.pdf"
+              ]
+            }
+          ],
+          "duration_ms": 408157,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 312516,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 366500,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 53983,
+                "usage": {
+                  "prompt_tokens": 1377,
+                  "completion_tokens": 44,
+                  "total_duration_ms": 51787,
+                  "load_duration_ms": 21825
+                },
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "query": "цифровые решения входят в цифровое ядро AIMS",
+                      "top_k": 3
+                    }
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 366500,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "цифровые решения входят в цифровое ядро AIMS",
+                  "top_k": 3
+                },
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 366907,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 407,
+                "count": 3,
+                "fragments_in_context": 3,
+                "top_k": 3,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3
+                ],
+                "top_score": 0.9171,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 408157,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 41233,
+                "usage": {
+                  "prompt_tokens": 2395,
+                  "completion_tokens": 141,
+                  "total_duration_ms": 39160,
+                  "load_duration_ms": 33
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Цифровое ядро AIMS включает три ключевых решения:\n\n1. Цифровой паспорт актива — единый источник правды об активе на всех стадиях жизненного цикла.\n2. Цифровой пульс актива — моделирует воздействия на "
+              }
+            },
+            {
+              "t_ms": 408157,
+              "type": "validation",
+              "data": {
+                "kind": "citations",
+                "cited": [
+                  1
+                ],
+                "valid": [
+                  1
+                ],
+                "invalid": []
+              }
+            },
+            {
+              "t_ms": 408157,
+              "type": "validation",
+              "data": {
+                "kind": "numbers",
+                "unconfirmed": []
+              }
+            },
+            {
+              "t_ms": 408157,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 408157,
+              "type": "final",
+              "data": {
+                "status": "answered",
+                "error_code": null,
+                "state": {
+                  "route": "tools",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 3,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "main_ergo",
+      "type": "main",
+      "title": "Факт с числом и перечислением: сегменты рынка в ERGO",
+      "goal": "Число и список берутся из фрагмента, числа подтверждаются текстом",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "search_knowledge_base",
+        "answer_llm",
+        "validate_citations",
+        "validate_numbers",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": false,
+      "duration_ms": 74547,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Сколько сегментов рынка микроэлектроники моделируется в бизнес-симуляторе ERGO и какие это сегменты?",
+          "expected": "5 сегментов, среди них военная электроника; источник — 01_ergo",
+          "passed": false,
+          "status": "not_found",
+          "error_code": null,
+          "answer": "Недостаточно информации в предоставленных документах.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
+                "category": "products/asset_management",
+                "top_k": 10
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 10,
+                "fragments_in_context": 10,
+                "top_k": 10,
+                "category": "products/asset_management",
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "top_score": 0.8106,
+                "files": [
+                  "03_aims_asset_management.pdf"
+                ]
+              },
+              "latency_ms": 156,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": false,
+              "expected": "answered",
+              "actual": "not_found"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "no_tool_errors",
+              "passed": true,
+              "expected": [],
+              "actual": []
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": false,
+              "expected": [
+                "военн"
+              ],
+              "actual": {
+                "missing": [
+                  "военн"
+                ]
+              }
+            },
+            {
+              "name": "answer_contains_any",
+              "passed": false,
+              "expected": [
+                "5 сегмент",
+                "пять сегмент",
+                "5 сегментов"
+              ],
+              "actual": {
+                "found": []
+              }
+            },
+            {
+              "name": "sources_include:01_ergo_business_simulator",
+              "passed": false,
+              "expected": "01_ergo_business_simulator",
+              "actual": []
+            }
+          ],
+          "duration_ms": 74467,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Сколько сегментов рынка микроэлектроники моделируется в бизнес-симуляторе ERGO и какие это сегменты?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 7281,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 18311,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 11030,
+                "usage": {
+                  "prompt_tokens": 1393,
+                  "completion_tokens": 59,
+                  "total_duration_ms": 8970,
+                  "load_duration_ms": 13
+                },
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
+                      "category": "products/asset_management",
+                      "top_k": 10
+                    }
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 18311,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
+                  "category": "products/asset_management",
+                  "top_k": 10
+                },
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 18467,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 156,
+                "count": 10,
+                "fragments_in_context": 10,
+                "top_k": 10,
+                "category": "products/asset_management",
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "top_score": 0.8106,
+                "files": [
+                  "03_aims_asset_management.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 74467,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 56000,
+                "usage": {
+                  "prompt_tokens": 4518,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 53957,
+                  "load_duration_ms": 7
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 74467,
+              "type": "validation",
+              "data": {
+                "kind": "not_found_phrase",
+                "ok": true
+              }
+            },
+            {
+              "t_ms": 74467,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 74467,
+              "type": "final",
+              "data": {
+                "status": "not_found",
+                "error_code": null,
+                "state": {
+                  "route": "tools",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 10,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "alternative_not_found",
+      "type": "alternative",
+      "title": "Ответа нет в документах: стоимость лицензии SIPS",
+      "goal": "Агент выполняет поиск, но честно сообщает, что информации нет, и не выдумывает цену",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "search_knowledge_base",
+        "answer_llm",
+        "validate_not_found",
+        "respond"
+      ],
+      "decision_points": [
+        "validate: фраза «Недостаточно информации…» -> статус not_found, источники не показываются"
+      ],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 79046,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?",
+          "expected": "Статус not_found, фраза «Недостаточно информации в предоставленных документах», без сумм",
+          "passed": true,
+          "status": "not_found",
+          "error_code": null,
+          "answer": "Недостаточно информации в предоставленных документах.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "top_k": 10,
+                "query": "стоимость годовой лицензии SIPS, стоимость внедрения продукта для компании"
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 10,
+                "fragments_in_context": 10,
+                "top_k": 10,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "top_score": 0.8674,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf",
+                  "04_ibp_integrated_business_planning.pdf"
+                ]
+              },
+              "latency_ms": 157,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "not_found",
+              "actual": "not_found"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "недостаточно информации"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "forbid_patterns",
+              "passed": true,
+              "expected": [
+                "\\d[\\d\\s]*\\s?(руб|₽|\\$|долл|usd|eur|евро)"
+              ],
+              "actual": {
+                "matched": []
+              }
+            }
+          ],
+          "duration_ms": 79030,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 5608,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 14264,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 8655,
+                "usage": {
+                  "prompt_tokens": 1391,
+                  "completion_tokens": 50,
+                  "total_duration_ms": 6593,
+                  "load_duration_ms": 11
+                },
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "top_k": 10,
+                      "query": "стоимость годовой лицензии SIPS, стоимость внедрения продукта для компании"
+                    }
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 14264,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "top_k": 10,
+                  "query": "стоимость годовой лицензии SIPS, стоимость внедрения продукта для компании"
+                },
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 14421,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 157,
+                "count": 10,
+                "fragments_in_context": 10,
+                "top_k": 10,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ],
+                "top_score": 0.8674,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf",
+                  "04_ibp_integrated_business_planning.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 79030,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 64608,
+                "usage": {
+                  "prompt_tokens": 4809,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 62547,
+                  "load_duration_ms": 8
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 79030,
+              "type": "validation",
+              "data": {
+                "kind": "not_found_phrase",
+                "ok": true
+              }
+            },
+            {
+              "t_ms": 79030,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 79030,
+              "type": "final",
+              "data": {
+                "status": "not_found",
+                "error_code": null,
+                "state": {
+                  "route": "tools",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 10,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "alternative_list_documents",
+      "type": "alternative",
+      "title": "Вопрос о составе базы: второй tool",
+      "goal": "LLM выбирает list_documents вместо поиска",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "list_documents",
+        "answer_llm",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 32750,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Какие документы есть в базе знаний?",
+          "expected": "Вызван list_documents, перечислены продукты ERGO, SIPS, AIMS, IBP, Integral 360",
+          "passed": true,
+          "status": "answered",
+          "error_code": null,
+          "answer": "В базе знаний есть следующие документы:\n\n- ERGO — бизнес-симулятор принятия стратегических решений [1]\n- SIPS — Strategic Investment Planning Suite [2]\n- AIMS — Asset Intelligence Management System 2.0 [3]\n- IBP — Интегрированное бизнес-планирование [4]\n- Integral 360 — концептуальное проектирование индустриально-логистических объектов [5]\n\nИсточники: [1, 2, 3, 4, 5]",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "list_documents",
+              "arguments": {},
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 5,
+                "truncated": false
+              },
+              "latency_ms": 0,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "answered",
+              "actual": "answered"
+            },
+            {
+              "name": "required_tool:list_documents",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "list_documents"
+              ]
+            },
+            {
+              "name": "no_tool_errors",
+              "passed": true,
+              "expected": [],
+              "actual": []
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "ERGO",
+                "AIMS"
+              ],
+              "actual": {
+                "missing": []
+              }
+            }
+          ],
+          "duration_ms": 32733,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Какие документы есть в базе знаний?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 5733,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 10108,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 4375,
+                "usage": {
+                  "prompt_tokens": 1370,
+                  "completion_tokens": 16,
+                  "total_duration_ms": 2295,
+                  "load_duration_ms": 14
+                },
+                "tool_calls": [
+                  {
+                    "name": "list_documents",
+                    "arguments": {}
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 10108,
+              "type": "tool_call",
+              "data": {
+                "name": "list_documents",
+                "arguments": {},
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 10108,
+              "type": "tool_result",
+              "data": {
+                "name": "list_documents",
+                "latency_ms": 0,
+                "count": 5,
+                "truncated": false
+              }
+            },
+            {
+              "t_ms": 32733,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 22625,
+                "usage": {
+                  "prompt_tokens": 1691,
+                  "completion_tokens": 129,
+                  "total_duration_ms": 20602,
+                  "load_duration_ms": 8
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "В базе знаний есть следующие документы:\n\n- ERGO — бизнес-симулятор принятия стратегических решений [1]\n- SIPS — Strategic Investment Planning Suite [2]\n- AIMS — Asset Intelligence Management System 2."
+              }
+            },
+            {
+              "t_ms": 32733,
+              "type": "validation",
+              "data": {
+                "kind": "documents",
+                "ok": true
+              }
+            },
+            {
+              "t_ms": 32733,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 32733,
+              "type": "final",
+              "data": {
+                "status": "answered",
+                "error_code": null,
+                "state": {
+                  "route": "tools",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 0,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "alternative_smalltalk",
+      "type": "alternative",
+      "title": "Приветствие: поиск не нужен",
+      "goal": "Агент отвечает без вызова tools и не выполняет принудительный поиск",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 7531,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Привет!",
+          "expected": "Статус smalltalk, 0 вызовов tools",
+          "passed": true,
+          "status": "smalltalk",
+          "error_code": null,
+          "answer": "Привет! Как я могу вам помочь сегодня?",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 1,
+          "tool_calls": [],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "smalltalk",
+              "actual": "smalltalk"
+            },
+            {
+              "name": "tool_calls_count",
+              "passed": true,
+              "expected": "0..0",
+              "actual": 0
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 1",
+              "actual": 1
+            }
+          ],
+          "duration_ms": 7515,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Привет!",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 3578,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 7515,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 3936,
+                "usage": {
+                  "prompt_tokens": 1362,
+                  "completion_tokens": 14,
+                  "total_duration_ms": 1894,
+                  "load_duration_ms": 11
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Привет! Как я могу вам помочь сегодня?"
+              }
+            },
+            {
+              "t_ms": 7515,
+              "type": "decision",
+              "data": {
+                "point": "route",
+                "route": "smalltalk",
+                "reason": "приветствие"
+              }
+            },
+            {
+              "t_ms": 7515,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 7515,
+              "type": "final",
+              "data": {
+                "status": "smalltalk",
+                "error_code": null,
+                "state": {
+                  "route": "smalltalk",
+                  "iteration": 1,
+                  "llm_calls": 1,
+                  "tool_calls": 0,
+                  "fragments": 0,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "error_top_k_range",
+      "type": "error",
+      "title": "Значение вне допустимого диапазона: top_k=0",
+      "goal": "Параметр пользователя фиксируется, tool отклоняет его, агент объясняет ошибку и не выдаёт ответ по существу",
+      "chain": [
+        "receive",
+        "guardrails",
+        "lock_user_params",
+        "plan_llm",
+        "search_knowledge_base(error)",
+        "template_error",
+        "respond"
+      ],
+      "decision_points": [
+        "user_params: top_k=0 зафиксирован, LLM не может его молча исправить",
+        "tool_failed: invalid_argument по параметру пользователя -> стоп без второго вызова LLM"
+      ],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 7484,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Найди информацию про цифровое ядро AIMS, top_k=0",
+          "expected": "Статус error, код invalid_argument, сообщение про диапазон top_k 1..10",
+          "passed": true,
+          "status": "error",
+          "error_code": "invalid_argument",
+          "answer": "Не удалось выполнить поиск по базе знаний: top_k должен быть в диапазоне от 1 до 10, получено 0.\nИсправьте значение параметра и повторите запрос.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 1,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "Найди информацию про цифровое ядро AIMS, top_k=0",
+                "top_k": "0"
+              },
+              "iteration": 1,
+              "status": "error",
+              "error_code": "invalid_argument",
+              "error": "top_k должен быть в диапазоне от 1 до 10, получено 0.",
+              "result_summary": {},
+              "latency_ms": 0,
+              "source": "forced"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "error",
+              "actual": "error"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "invalid_argument",
+              "actual": "invalid_argument"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 1",
+              "actual": 1
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "top_k",
+                "от 1 до 10"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "answer_not_contains",
+              "passed": true,
+              "expected": [
+                "паспорт",
+                "по данным базы знаний"
+              ],
+              "actual": {
+                "present": []
+              }
+            }
+          ],
+          "duration_ms": 7468,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Найди информацию про цифровое ядро AIMS, top_k=0",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "user_params",
+                "locked": {
+                  "top_k": "0"
+                },
+                "rule": "параметры пользователя подставляются в tool поверх значений LLM"
+              }
+            },
+            {
+              "t_ms": 3483,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 3984,
+                "usage": {
+                  "prompt_tokens": 1376,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 1927,
+                  "load_duration_ms": 9
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "decision",
+              "data": {
+                "point": "route",
+                "route": "forced_search",
+                "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
+                "llm_text_discarded": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "decision",
+              "data": {
+                "point": "apply_locked_param",
+                "param": "top_k",
+                "llm_value": null,
+                "user_value": "0"
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "Найди информацию про цифровое ядро AIMS, top_k=0",
+                  "top_k": "0"
+                },
+                "source": "forced",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "tool_error",
+              "data": {
+                "name": "search_knowledge_base",
+                "error_code": "invalid_argument",
+                "error": "top_k должен быть в диапазоне от 1 до 10, получено 0.",
+                "latency_ms": 0
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "decision",
+              "data": {
+                "point": "tool_failed",
+                "error_code": "invalid_argument",
+                "action": "стоп: некорректный параметр задан пользователем, молча исправлять нельзя"
+              }
+            },
+            {
+              "t_ms": 7468,
+              "type": "final",
+              "data": {
+                "status": "error",
+                "error_code": "invalid_argument",
+                "state": {
+                  "route": "forced_search",
+                  "iteration": 1,
+                  "llm_calls": 1,
+                  "tool_calls": 1,
+                  "fragments": 0,
+                  "locked_params": {
+                    "top_k": "0"
+                  },
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "error_top_k_type",
+      "type": "error",
+      "title": "Значение неправильного типа: top_k=пять",
+      "goal": "Ошибка типа обрабатывается так же, как ошибка диапазона, без исключения",
+      "chain": [
+        "receive",
+        "guardrails",
+        "lock_user_params",
+        "plan_llm",
+        "search_knowledge_base(error)",
+        "template_error",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 8703,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Что такое SIPS? top_k=пять",
+          "expected": "Статус error, код invalid_argument, сообщение «top_k должен быть целым числом»",
+          "passed": true,
+          "status": "error",
+          "error_code": "invalid_argument",
+          "answer": "Не удалось выполнить поиск по базе знаний: top_k должен быть целым числом, получено «пять».\nИсправьте значение параметра и повторите запрос.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 1,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "что такое sips",
+                "top_k": "пять"
+              },
+              "iteration": 1,
+              "status": "error",
+              "error_code": "invalid_argument",
+              "error": "top_k должен быть целым числом, получено «пять».",
+              "result_summary": {},
+              "latency_ms": 0,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "error",
+              "actual": "error"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "invalid_argument",
+              "actual": "invalid_argument"
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 1",
+              "actual": 1
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "целым числом"
+              ],
+              "actual": {
+                "missing": []
+              }
+            }
+          ],
+          "duration_ms": 8688,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Что такое SIPS? top_k=пять",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "user_params",
+                "locked": {
+                  "top_k": "пять"
+                },
+                "rule": "параметры пользователя подставляются в tool поверх значений LLM"
+              }
+            },
+            {
+              "t_ms": 2702,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 5985,
+                "usage": {
+                  "prompt_tokens": 1369,
+                  "completion_tokens": 32,
+                  "total_duration_ms": 3942,
+                  "load_duration_ms": 8
+                },
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "query": "что такое sips",
+                      "top_k": 5
+                    }
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "decision",
+              "data": {
+                "point": "apply_locked_param",
+                "param": "top_k",
+                "llm_value": 5,
+                "user_value": "пять"
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "что такое sips",
+                  "top_k": "пять"
+                },
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "tool_error",
+              "data": {
+                "name": "search_knowledge_base",
+                "error_code": "invalid_argument",
+                "error": "top_k должен быть целым числом, получено «пять».",
+                "latency_ms": 0
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "decision",
+              "data": {
+                "point": "tool_failed",
+                "error_code": "invalid_argument",
+                "action": "стоп: некорректный параметр задан пользователем, молча исправлять нельзя"
+              }
+            },
+            {
+              "t_ms": 8688,
+              "type": "final",
+              "data": {
+                "status": "error",
+                "error_code": "invalid_argument",
+                "state": {
+                  "route": "tools",
+                  "iteration": 1,
+                  "llm_calls": 1,
+                  "tool_calls": 1,
+                  "fragments": 0,
+                  "locked_params": {
+                    "top_k": "пять"
+                  },
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "guardrail_secret",
+      "type": "error",
+      "title": "Секрет в запросе: отказ до обращения к LLM",
+      "goal": "Запрос с API-ключом не уходит в модель, не сохраняется в памяти и не попадает в trace",
+      "chain": [
+        "receive",
+        "guardrails(block)",
+        "respond"
+      ],
+      "decision_points": [
+        "guardrails: secret_detected -> rejected; в trace — только [REDACTED:...]"
+      ],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 0,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Сохрани мой ключ [REDACTED:openai_key] и найди документы по AIMS",
+          "expected": "Статус rejected, 0 вызовов LLM и tools, ключ отсутствует в trace",
+          "passed": true,
+          "status": "rejected",
+          "error_code": "secret_detected",
+          "answer": "В запросе обнаружены секретные данные (openai_key). Запрос не отправлен в модель и не сохранён. Удалите ключ/пароль/номер карты из текста; если секрет уже где-то опубликован — перевыпустите его.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 0,
+          "tool_calls": [],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "rejected",
+              "actual": "rejected"
+            },
+            {
+              "name": "route",
+              "passed": true,
+              "expected": "guardrail_block",
+              "actual": "guardrail_block"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "secret_detected",
+              "actual": "secret_detected"
+            },
+            {
+              "name": "tool_calls_count",
+              "passed": true,
+              "expected": "0..0",
+              "actual": 0
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 0",
+              "actual": 0
+            },
+            {
+              "name": "memory_size",
+              "passed": true,
+              "expected": 0,
+              "actual": 0
+            },
+            {
+              "name": "trace_not_contains",
+              "passed": true,
+              "expected": "секрет отсутствует в trace и ответе",
+              "actual": {
+                "leaked_count": 0
+              }
+            }
+          ],
+          "duration_ms": 0,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Сохрани мой ключ [REDACTED:openai_key] и найди документы по AIMS",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": false,
+                "reason": "secret_detected",
+                "secret_kinds": [
+                  "openai_key"
+                ]
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "final",
+              "data": {
+                "status": "rejected",
+                "error_code": "secret_detected",
+                "state": {
+                  "route": "guardrail_block",
+                  "iteration": 0,
+                  "llm_calls": 0,
+                  "tool_calls": 0,
+                  "fragments": 0,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "guardrail_empty",
+      "type": "error",
+      "title": "Обязательные данные не переданы: пустой запрос",
+      "goal": "Пустой запрос отклоняется с подсказкой, без вызова LLM",
+      "chain": [
+        "receive",
+        "guardrails(block)",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 0,
+      "steps": [
+        {
+          "step": 1,
+          "request": "",
+          "expected": "Статус rejected, код empty_query",
+          "passed": true,
+          "status": "rejected",
+          "error_code": "empty_query",
+          "answer": "Пустой запрос. Сформулируйте вопрос по базе знаний, например: «Какие решения входят в цифровое ядро AIMS?»",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 0,
+          "tool_calls": [],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "rejected",
+              "actual": "rejected"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "empty_query",
+              "actual": "empty_query"
+            },
+            {
+              "name": "tool_calls_count",
+              "passed": true,
+              "expected": "0..0",
+              "actual": 0
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 0",
+              "actual": 0
+            }
+          ],
+          "duration_ms": 0,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": false,
+                "reason": "empty_query",
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "final",
+              "data": {
+                "status": "rejected",
+                "error_code": "empty_query",
+                "state": {
+                  "route": "guardrail_block",
+                  "iteration": 0,
+                  "llm_calls": 0,
+                  "tool_calls": 0,
+                  "fragments": 0,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "tool_failure_index",
+      "type": "tool_failure",
+      "title": "Индекс недоступен",
+      "goal": "Tool возвращает index_unavailable, агент не придумывает ответ и подсказывает, как собрать индекс",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm",
+        "search_knowledge_base(error)",
+        "template_error",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {
+        "retrieval.collection_name": "__missing_collection__",
+        "retriever.chunks_jsonl": "data/public/chunks/__missing__.jsonl"
+      },
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 10141,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+          "expected": "Статус error, код index_unavailable, в ответе нет фактов из документа",
+          "passed": true,
+          "status": "error",
+          "error_code": "index_unavailable",
+          "answer": "Не удалось выполнить поиск по базе знаний: индекс недоступен: Коллекция '__missing_collection__' не найдена в Qdrant. Сначала выполните индексацию: python src/vector_pipeline.py. Найдено: ['rag_documents'].\nПроверьте, что индекс собран (python src/build_index.py --profile public) и что хранилище Qdrant не открыто другим процессом.",
+          "sources": [],
+          "warnings": [],
+          "llm_calls": 1,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "цифровые решения в цифровое ядро AIMS",
+                "top_k": 3
+              },
+              "iteration": 1,
+              "status": "error",
+              "error_code": "index_unavailable",
+              "error": "индекс недоступен: Коллекция '__missing_collection__' не найдена в Qdrant. Сначала выполните индексацию: python src/vector_pipeline.py. Найдено: ['rag_documents'].",
+              "result_summary": {},
+              "latency_ms": 16,
+              "source": "llm"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "error",
+              "actual": "error"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "index_unavailable",
+              "actual": "index_unavailable"
+            },
+            {
+              "name": "llm_calls_count",
+              "passed": true,
+              "expected": "<= 1",
+              "actual": 1
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "build_index"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "answer_not_contains",
+              "passed": true,
+              "expected": [
+                "паспорт",
+                "пульс",
+                "биржа"
+              ],
+              "actual": {
+                "present": []
+              }
+            }
+          ],
+          "duration_ms": 10141,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 16,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": null,
+                "rule": "фасеты недоступны: базовая схема инструментов"
+              }
+            },
+            {
+              "t_ms": 10125,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 10108,
+                "usage": {
+                  "prompt_tokens": 1347,
+                  "completion_tokens": 42,
+                  "total_duration_ms": 8062,
+                  "load_duration_ms": 5
+                },
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "query": "цифровые решения в цифровое ядро AIMS",
+                      "top_k": 3
+                    }
+                  }
+                ],
+                "tool_call_parsed_from_text": false,
+                "content_preview": ""
+              }
+            },
+            {
+              "t_ms": 10125,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "цифровые решения в цифровое ядро AIMS",
+                  "top_k": 3
+                },
+                "source": "llm",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 10141,
+              "type": "tool_error",
+              "data": {
+                "name": "search_knowledge_base",
+                "error_code": "index_unavailable",
+                "error": "индекс недоступен: Коллекция '__missing_collection__' не найдена в Qdrant. Сначала выполните индексацию: python src/vector_pipeline.py. Найдено: ['rag_documents'].",
+                "latency_ms": 16
+              }
+            },
+            {
+              "t_ms": 10141,
+              "type": "decision",
+              "data": {
+                "point": "tool_failed",
+                "error_code": "index_unavailable",
+                "action": "стоп: шаблонный ответ об ошибке, LLM не вызывается"
+              }
+            },
+            {
+              "t_ms": 10141,
+              "type": "final",
+              "data": {
+                "status": "error",
+                "error_code": "index_unavailable",
+                "state": {
+                  "route": "tools",
+                  "iteration": 1,
+                  "llm_calls": 1,
+                  "tool_calls": 1,
+                  "fragments": 0,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "tool_failure_llm",
+      "type": "tool_failure",
+      "title": "Языковая модель недоступна",
+      "goal": "Агент выполняет резервный поиск без LLM и честно сообщает о деградации",
+      "chain": [
+        "receive",
+        "guardrails",
+        "plan_llm(error)",
+        "search_knowledge_base(degraded)",
+        "template_degraded",
+        "respond"
+      ],
+      "decision_points": [
+        "llm_unavailable -> degraded: фрагменты показываются без генерации ответа"
+      ],
+      "overrides": {
+        "llm.backend": "ollama",
+        "llm.base_url": "http://127.0.0.1:9",
+        "llm.timeout_seconds": 5
+      },
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://127.0.0.1:9 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 4703,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+          "expected": "Статус degraded, код llm_unavailable, показаны найденные фрагменты",
+          "passed": true,
+          "status": "degraded",
+          "error_code": "llm_unavailable",
+          "answer": "Языковая модель сейчас недоступна (нет соединения с Ollama по адресу http://127.0.0.1:9 ([WinError 10061] No connection could be made because the target machine actively refused it)). Ответ не сгенерирован. Ниже — найденные фрагменты без обработки, проверьте их вручную.\n\n[Фрагмент 1] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.9195)\n3. Что такое AIMS AIMS (Asset Intelligence Management System 2.0) — интеллектуальная система управления имуществом на базе цифровых решений. Система объединяет управленческое и\nцифровое ядро.\nУправленческое ядро:\n• распределение ролей и полномочий — закрепляет роли, полномочия и ответственность за управление имуществом;\n• система управления активами на всём жизненном цикле — объединяет учёт, оценк…\n\n[Фрагмент 2] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.8649)\n8. Портфель инициатив и дорожная карта Инициативы распределяются по матрице «Величина эффекта — время реализации»: быстрые победы (высокий эффект, короткий срок), стратегические\nинициативы (высокий эффект, длительный срок), тактические шаги (умеренный эффект, короткий срок), нецелесообразные усилия (низкий эффект, длительный срок). К быстрым победам относится, в частности, высвобождение избыточног…\n\n[Фрагмент 3] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.8530)\nAIMS — Asset Intelligence Management System 2.0 Документ: Описание продукта AIMS (интеллектуальная система управления имущественными активами 2.0) Категория: products / управление имущественными активами\n\n[Фрагмент 4] SIPS — Strategic Investment Planning Suite (02_sips_investment_planning.pdf, score 0.8490)\n3.3. Компонента 3. Операционное ядро Операционное ядро — цифровой двойник производственной системы стратегического уровня. Это имитационное моделирование на уровне операционной\nмодели всего бизнеса, а не отдельных производственных активов.\nДрайверы модели: плановые ремонты, спрос, регуляторные ограничения, инвестиционные проекты.\nМоделируемые эффекты: доходы, износ активов, удовлетворение спроса, …\n\nПроверьте, что Ollama запущена (ollama serve) и модель загружена (ollama list).",
+          "sources": [
+            {
+              "fragment": 1,
+              "document_name": "AIMS — Asset Intelligence Management System 2.0",
+              "file_name": "03_aims_asset_management.pdf",
+              "category": "products/asset_management",
+              "chunk_index": 4,
+              "score": 0.9195
+            },
+            {
+              "fragment": 2,
+              "document_name": "AIMS — Asset Intelligence Management System 2.0",
+              "file_name": "03_aims_asset_management.pdf",
+              "category": "products/asset_management",
+              "chunk_index": 10,
+              "score": 0.8649
+            },
+            {
+              "fragment": 3,
+              "document_name": "AIMS — Asset Intelligence Management System 2.0",
+              "file_name": "03_aims_asset_management.pdf",
+              "category": "products/asset_management",
+              "chunk_index": 0,
+              "score": 0.853
+            },
+            {
+              "fragment": 4,
+              "document_name": "SIPS — Strategic Investment Planning Suite",
+              "file_name": "02_sips_investment_planning.pdf",
+              "category": "products/strategic_investment_planning",
+              "chunk_index": 7,
+              "score": 0.849
+            }
+          ],
+          "warnings": [],
+          "llm_calls": 1,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "Какие три цифровых решения входят в цифровое ядро AIMS?"
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.9195,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              },
+              "latency_ms": 140,
+              "source": "degraded"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "degraded",
+              "actual": "degraded"
+            },
+            {
+              "name": "error_code",
+              "passed": true,
+              "expected": "llm_unavailable",
+              "actual": "llm_unavailable"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "недоступна",
+                "Фрагмент"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "min_sources",
+              "passed": true,
+              "expected": ">= 1",
+              "actual": 4
+            }
+          ],
+          "duration_ms": 4703,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Какие три цифровых решения входят в цифровое ядро AIMS?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 2547,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 4563,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": false,
+                "error": "нет соединения с Ollama по адресу http://127.0.0.1:9 ([WinError 10061] No connection could be made because the target machine actively refused it)"
+              }
+            },
+            {
+              "t_ms": 4563,
+              "type": "decision",
+              "data": {
+                "point": "llm_unavailable",
+                "action": "degraded: резервный поиск без генерации"
+              }
+            },
+            {
+              "t_ms": 4563,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "Какие три цифровых решения входят в цифровое ядро AIMS?"
+                },
+                "source": "degraded",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 4703,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 140,
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.9195,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 4703,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 4703,
+              "type": "final",
+              "data": {
+                "status": "degraded",
+                "error_code": "llm_unavailable",
+                "state": {
+                  "route": "degraded",
+                  "iteration": 1,
+                  "llm_calls": 1,
+                  "tool_calls": 1,
+                  "fragments": 4,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": "нет соединения с Ollama по адресу http://127.0.0.1:9 ([WinError 10061] No connection could be made because the target machine actively refused it)"
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "recovery_followup",
+      "type": "recovery",
+      "title": "Уточняющий вопрос: восстановление темы из памяти диалога",
+      "goal": "Во втором шаге агент понимает, что «там» — это SIPS, и включает тему в запрос к поиску",
+      "chain": [
+        "receive",
+        "guardrails",
+        "memory_context",
+        "plan_llm",
+        "search_knowledge_base",
+        "answer_llm",
+        "validate",
+        "memory_update",
+        "respond"
+      ],
+      "decision_points": [],
+      "overrides": {},
+      "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
+      "passed": true,
+      "duration_ms": 104984,
+      "steps": [
+        {
+          "step": 1,
+          "request": "Что такое SIPS?",
+          "expected": "Ответ по документу SIPS, память: 2 сообщения",
+          "passed": true,
+          "status": "answered",
+          "error_code": null,
+          "answer": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. Он предназначен для устранения рассинхронизации между стратегическим и инвестиционным процессами, обеспечивая их интеграцию и прозрачность.\n\nОсновные характеристики SIPS:\n- Архитектура включает три компонента: FRONT-END / интерфейсы, методология и прототип.\n- Отраслевая применимость SIPS универсальна, но максимальный эффект достигается в отраслях с многочисленными однотипными активами, такими как города, электроэнергетика, транспорт, инфокоммуникации и промышленность.\n- Этапы реализации включают концепцию, методологию, прототипирование, разработку модели и поддержку.\n\nИсточники: [Фрагмент 1, Фрагмент 2, Фрагмент 3]",
+          "sources": [
+            {
+              "fragment": 1,
+              "document_name": "SIPS — Strategic Investment Planning Suite",
+              "file_name": "02_sips_investment_planning.pdf",
+              "category": "products/strategic_investment_planning",
+              "chunk_index": 0,
+              "score": 0.8828
+            },
+            {
+              "fragment": 2,
+              "document_name": "SIPS — Strategic Investment Planning Suite",
+              "file_name": "02_sips_investment_planning.pdf",
+              "category": "products/strategic_investment_planning",
+              "chunk_index": 3,
+              "score": 0.8648
+            },
+            {
+              "fragment": 3,
+              "document_name": "SIPS — Strategic Investment Planning Suite",
+              "file_name": "02_sips_investment_planning.pdf",
+              "category": "products/strategic_investment_planning",
+              "chunk_index": 9,
+              "score": 0.8563
+            }
+          ],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "Что такое SIPS?"
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.8828,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              },
+              "latency_ms": 32,
+              "source": "forced"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "answered",
+              "actual": "answered"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "sources_include:02_sips_investment_planning",
+              "passed": true,
+              "expected": "02_sips_investment_planning",
+              "actual": [
+                "02_sips_investment_planning.pdf",
+                "02_sips_investment_planning.pdf",
+                "02_sips_investment_planning.pdf"
+              ]
+            },
+            {
+              "name": "memory_size",
+              "passed": true,
+              "expected": 2,
+              "actual": 2
+            }
+          ],
+          "duration_ms": 61671,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "Что такое SIPS?",
+                "memory_size": 0
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 2421,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 8936,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 2,
+                "tools_offered": true,
+                "latency_ms": 6515,
+                "usage": {
+                  "prompt_tokens": 1364,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 4473,
+                  "load_duration_ms": 13
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 8936,
+              "type": "decision",
+              "data": {
+                "point": "route",
+                "route": "forced_search",
+                "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
+                "llm_text_discarded": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 8936,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "Что такое SIPS?"
+                },
+                "source": "forced",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 8968,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 32,
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.8828,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 61671,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 52702,
+                "usage": {
+                  "prompt_tokens": 2608,
+                  "completion_tokens": 239,
+                  "total_duration_ms": 50674,
+                  "load_duration_ms": 5
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. Он предназначен для устранения р"
+              }
+            },
+            {
+              "t_ms": 61671,
+              "type": "validation",
+              "data": {
+                "kind": "citations",
+                "cited": [
+                  1,
+                  2,
+                  3
+                ],
+                "valid": [
+                  1,
+                  2,
+                  3
+                ],
+                "invalid": []
+              }
+            },
+            {
+              "t_ms": 61671,
+              "type": "validation",
+              "data": {
+                "kind": "numbers",
+                "unconfirmed": []
+              }
+            },
+            {
+              "t_ms": 61671,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 0,
+                "size_after": 2
+              }
+            },
+            {
+              "t_ms": 61671,
+              "type": "final",
+              "data": {
+                "status": "answered",
+                "error_code": null,
+                "state": {
+                  "route": "forced_search",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 4,
+                  "locked_params": {},
+                  "followup_terms": [],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "request": "А какой объём электрификации путей там был в примере оптимизации?",
+          "expected": "Query поиска содержит SIPS, в ответе 135 км; память: 4 сообщения",
+          "passed": true,
+          "status": "answered",
+          "error_code": null,
+          "answer": "В примере оптимизации для железнодорожной сети объём электрификации путей был заявлен 200 км, но в оптимальной программе было выбрано 135 км.\n\nИсточники: [Фрагмент 3]",
+          "sources": [
+            {
+              "fragment": 3,
+              "document_name": "SIPS — Strategic Investment Planning Suite",
+              "file_name": "02_sips_investment_planning.pdf",
+              "category": "products/strategic_investment_planning",
+              "chunk_index": 5,
+              "score": 0.8276
+            }
+          ],
+          "warnings": [],
+          "llm_calls": 2,
+          "tool_calls": [
+            {
+              "name": "search_knowledge_base",
+              "arguments": {
+                "query": "А какой объём электрификации путей там был в примере оптимизации? SIPS"
+              },
+              "iteration": 1,
+              "status": "success",
+              "error_code": null,
+              "error": null,
+              "result_summary": {
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.8491,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf",
+                  "04_ibp_integrated_business_planning.pdf"
+                ]
+              },
+              "latency_ms": 31,
+              "source": "forced"
+            }
+          ],
+          "checks": [
+            {
+              "name": "status",
+              "passed": true,
+              "expected": "answered",
+              "actual": "answered"
+            },
+            {
+              "name": "required_tool:search_knowledge_base",
+              "passed": true,
+              "expected": "вызван",
+              "actual": [
+                "search_knowledge_base"
+              ]
+            },
+            {
+              "name": "answer_contains_all",
+              "passed": true,
+              "expected": [
+                "135"
+              ],
+              "actual": {
+                "missing": []
+              }
+            },
+            {
+              "name": "sources_include:02_sips_investment_planning",
+              "passed": true,
+              "expected": "02_sips_investment_planning",
+              "actual": [
+                "02_sips_investment_planning.pdf"
+              ]
+            },
+            {
+              "name": "tool_args:search_knowledge_base.query",
+              "passed": true,
+              "expected": "содержит «SIPS»",
+              "actual": [
+                "А какой объём электрификации путей там был в примере оптимизации? SIPS"
+              ]
+            },
+            {
+              "name": "memory_size",
+              "passed": true,
+              "expected": 4,
+              "actual": 4
+            }
+          ],
+          "duration_ms": 43297,
+          "trace": [
+            {
+              "t_ms": 0,
+              "type": "state",
+              "data": {
+                "stage": "received",
+                "query": "А какой объём электрификации путей там был в примере оптимизации?",
+                "memory_size": 2
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "guardrails",
+                "allowed": true,
+                "reason": null,
+                "secret_kinds": []
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "followup_context",
+                "terms": [
+                  "SIPS"
+                ],
+                "rule": "уточняющий вопрос: термины темы из памяти будут добавлены в query поиска, если модель их не включила"
+              }
+            },
+            {
+              "t_ms": 0,
+              "type": "decision",
+              "data": {
+                "point": "tool_schema",
+                "facets": {
+                  "categories": 5,
+                  "industries": 0,
+                  "years": [
+                    null,
+                    null
+                  ]
+                },
+                "rule": "допустимые значения фильтров взяты из индекса"
+              }
+            },
+            {
+              "t_ms": 6358,
+              "type": "llm_call",
+              "data": {
+                "stage": "plan",
+                "iteration": 1,
+                "ok": true,
+                "messages": 4,
+                "tools_offered": true,
+                "latency_ms": 6358,
+                "usage": {
+                  "prompt_tokens": 1530,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 4281,
+                  "load_duration_ms": 7
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 6358,
+              "type": "decision",
+              "data": {
+                "point": "route",
+                "route": "forced_search",
+                "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
+                "llm_text_discarded": "Недостаточно информации в предоставленных документах."
+              }
+            },
+            {
+              "t_ms": 6358,
+              "type": "decision",
+              "data": {
+                "point": "apply_followup_context",
+                "added_terms": [
+                  "SIPS"
+                ],
+                "query": "А какой объём электрификации путей там был в примере оптимизации? SIPS",
+                "source": "forced"
+              }
+            },
+            {
+              "t_ms": 6358,
+              "type": "tool_call",
+              "data": {
+                "name": "search_knowledge_base",
+                "arguments": {
+                  "query": "А какой объём электрификации путей там был в примере оптимизации? SIPS"
+                },
+                "source": "forced",
+                "iteration": 1
+              }
+            },
+            {
+              "t_ms": 6390,
+              "type": "tool_result",
+              "data": {
+                "name": "search_knowledge_base",
+                "latency_ms": 31,
+                "count": 4,
+                "fragments_in_context": 4,
+                "top_k": 4,
+                "category": null,
+                "numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "top_score": 0.8491,
+                "files": [
+                  "02_sips_investment_planning.pdf",
+                  "03_aims_asset_management.pdf",
+                  "04_ibp_integrated_business_planning.pdf"
+                ]
+              }
+            },
+            {
+              "t_ms": 43297,
+              "type": "llm_call",
+              "data": {
+                "stage": "answer",
+                "iteration": 2,
+                "ok": true,
+                "messages": 6,
+                "tools_offered": true,
+                "latency_ms": 36907,
+                "usage": {
+                  "prompt_tokens": 3110,
+                  "completion_tokens": 66,
+                  "total_duration_ms": 34889,
+                  "load_duration_ms": 6
+                },
+                "tool_calls": [],
+                "tool_call_parsed_from_text": false,
+                "content_preview": "В примере оптимизации для железнодорожной сети объём электрификации путей был заявлен 200 км, но в оптимальной программе было выбрано 135 км.\n\nИсточники: [Фрагмент 3]"
+              }
+            },
+            {
+              "t_ms": 43297,
+              "type": "validation",
+              "data": {
+                "kind": "citations",
+                "cited": [
+                  3
+                ],
+                "valid": [
+                  3
+                ],
+                "invalid": []
+              }
+            },
+            {
+              "t_ms": 43297,
+              "type": "validation",
+              "data": {
+                "kind": "numbers",
+                "unconfirmed": []
+              }
+            },
+            {
+              "t_ms": 43297,
+              "type": "memory",
+              "data": {
+                "action": "add_turn",
+                "size_before": 2,
+                "size_after": 4
+              }
+            },
+            {
+              "t_ms": 43297,
+              "type": "final",
+              "data": {
+                "status": "answered",
+                "error_code": null,
+                "state": {
+                  "route": "forced_search",
+                  "iteration": 2,
+                  "llm_calls": 2,
+                  "tool_calls": 1,
+                  "fragments": 4,
+                  "locked_params": {},
+                  "followup_terms": [
+                    "SIPS"
+                  ],
+                  "followup_cards": 0,
+                  "llm_error": null
+                },
+                "warnings": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
