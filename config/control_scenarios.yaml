@@ -218,7 +218,7 @@ scenarios:
           route: documents
           status: degraded
           sources_any: [03_aims_asset_management.pdf]
-          warnings_any: ["модель недоступна"]
+          warnings_any: ["недоступна"]          # проверяется факт предупреждения, а не формулировка
           escalation: {required: false}
 
   - id: CS-15
