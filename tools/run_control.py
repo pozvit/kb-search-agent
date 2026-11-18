@@ -90,30 +90,42 @@ def cited(text: str) -> Set[int]:
     return {int(n) for group in CITE.findall(text) for n in re.findall(r"\d+", group)}
 
 
+GROUNDING_RULES = "v2"
+# v1 — первая версия. v2 (после замера baseline, правила стали мягче — baseline от этого только выигрывает):
+#   - вводная строка перед списком («…включает три решения:») — не утверждение;
+#   - ссылки из строки «Источники: …» в конце ответа относятся к утверждениям без своей ссылки
+#     (общее требование к доле общих слов и числам при этом сохраняется);
+#   - ответ без длинных утверждений (только короткие пункты) подкреплён, если в нём есть ссылки на полученные фрагменты.
+
+
 def check_grounding(answer: str, fragments: Dict[int, str], min_overlap: float = 0.5,
                     min_terms: int = 3) -> Dict[str, Any]:
     """
     Утверждение (предложение или пункт списка) с не менее чем min_terms значимыми словами подкреплено, если:
-      - оно ссылается на фрагмент — само или ссылкой в конце своего абзаца;
+      - оно ссылается на фрагмент — само, ссылкой в конце своего абзаца или списком «Источники: …» в конце ответа;
       - фрагмент реально был получен;
       - доля значимых основ утверждения, найденных в процитированных фрагментах, >= min_overlap;
       - все его числа есть в процитированных фрагментах.
     Лексическая проверка: ловит утверждения без ссылки, ссылки «не туда» и чужие числа,
-    но не смысловые ошибки при верных словах.
+    но не смысловые ошибки при верных словах (например, чужую карточку в списке, если её текст процитирован).
     """
+    answer = answer or ""
+    answer_cites = {n for line in answer.split("\n") if re.match(r"(?i)^\s*источники", line) for n in cited(line)}
     units, unsupported = 0, []
-    for paragraph in re.split(r"\n\s*\n", answer or ""):
+    for paragraph in re.split(r"\n\s*\n", answer):
         lines = [l for l in paragraph.split("\n") if l.strip() and not SKIP_LINE.match(l)]
         if not lines:
             continue
         para_cites = cited("\n".join(lines))
         for line in lines:
             for unit in re.split(r"(?<=[.!?])\s+", line):
+                if unit.rstrip().endswith(":"):
+                    continue                     # вводная строка перед списком
                 terms = stems(CITE.sub(" ", unit))
                 if len(terms) < min_terms:
                     continue
                 units += 1
-                refs = cited(unit) or para_cites
+                refs = cited(unit) or para_cites or answer_cites
                 texts = [fragments[r] for r in refs if r in fragments]
                 if not texts:
                     unsupported.append({"unit": unit[:160], "why": "нет ссылки на полученный фрагмент"})
@@ -126,7 +138,9 @@ def check_grounding(answer: str, fragments: Dict[int, str], min_overlap: float =
                     unsupported.append({"unit": unit[:160], "why": f"мало общих слов с фрагментом ({overlap:.2f})"})
                 elif missing:
                     unsupported.append({"unit": unit[:160], "why": f"чисел нет во фрагменте: {missing}"})
-    return {"units": units, "unsupported": unsupported, "grounded": units > 0 and not unsupported}
+    valid_cites = (cited(answer) & set(fragments))
+    grounded = (not unsupported) and (units > 0 or bool(valid_cites))
+    return {"units": units, "unsupported": unsupported, "grounded": grounded, "rules": GROUNDING_RULES}
 
 
 # ---------------------------------------------------------------- независимые эталоны по каталогу
@@ -395,7 +409,8 @@ def run(args) -> int:
             llm = NoCitationsLLM(create_backend(cfg["llm"]))
         return KBAgent(cfg, llm=llm), cfg
 
-    print(f"Версия: {version_dir} ({describe_version(version_dir)}) | данные: {data_dir} | LLM: {args.llm} | retriever: {args.retriever}")
+    print(f"Версия: {safe_path(version_dir)} ({describe_version(version_dir)}) | данные: {safe_path(data_dir)} | "
+          f"LLM: {args.llm} | retriever: {args.retriever}")
     if not args.no_warmup:
         agent, _ = make_agent({})
         t0 = time.perf_counter()
@@ -438,17 +453,29 @@ def run(args) -> int:
     metrics = aggregate(steps_out)
     report = {
         "label": args.label, "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
-        "version": {"dir": str(version_dir), "describe": describe_version(version_dir)},
+        "version": {"dir": safe_path(version_dir), "describe": describe_version(version_dir)},
         "environment": {"llm": args.llm, "retriever": args.retriever, "python": platform.python_version(),
                         "platform": platform.platform(terse=True), "dataset": spec.get("dataset"),
                         "today_year": oracle.year},
-        "metrics": metrics, "steps": steps_out,
+        "grounding_rules": GROUNDING_RULES, "metrics": metrics, "steps": steps_out,
     }
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"{args.label}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     (out_dir / f"{args.label}.md").write_text(summary_md(report), encoding="utf-8")
-    print(f"\nМетрики: {json.dumps(metrics, ensure_ascii=False)}\nОтчёт: {out_dir / (args.label + '.json')}")
+    print(f"\nМетрики: {json.dumps(metrics, ensure_ascii=False)}\nОтчёт: {safe_path(out_dir / (args.label + '.json'))}")
     return 0
+
+
+def safe_path(path: Any) -> str:
+    """
+    Путь для отчётов и вывода без имени профиля пользователя: домашняя папка заменяется на «~».
+    В Windows имя профиля часто совпадает с ФИО, а отчёты коммитятся в репозиторий.
+    """
+    text = str(path)
+    home = str(Path.home())
+    if home and text.lower().startswith(home.lower()):
+        text = "~" + text[len(home):]
+    return re.sub(r"(?i)([\\/](?:users|home)[\\/])[^\\/]+", r"\1~", text)
 
 
 def describe_version(path: Path) -> str:
@@ -491,7 +518,8 @@ def fmt(v):
 def summary_md(report) -> str:
     lines = [f"# Контрольный набор: {report['label']}", "",
              f"Версия `{report['version']['describe']}`, LLM `{report['environment']['llm']}`, "
-             f"retriever `{report['environment']['retriever']}`, {report['created_at']}.", "",
+             f"retriever `{report['environment']['retriever']}`, {report['created_at']}, "
+             f"правила проверки привязки {report.get('rescored', [{}])[-1].get('grounding_rules', report.get('grounding_rules', 'v1'))}.", "",
              "| | Метрика | Значение | Цель |", "|---|---|---|---|"]
     for qid, name, key, target in METRIC_ROWS:
         lines.append(f"| {qid} | {name} | {fmt(metric(report, key))} | {target} |")
@@ -538,6 +566,44 @@ def force_utf8_when_redirected() -> None:
             pass
 
 
+def rescore(args) -> int:
+    """
+    Пересчитать проверку привязки и метрики по сохранённому отчёту, не запуская модель заново.
+    Нужен при изменении правил проверки: ответы те же, меняются только правила оценки.
+    """
+    out_dir = Path(args.out)
+    path = out_dir / f"{args.rescore}.json"
+    report = json.loads(path.read_text(encoding="utf-8"))
+    data_dir = Path(args.data_dir).resolve()
+    chunks = load_chunks(data_dir / "data/public/chunks/chunks.jsonl")
+    changed = 0
+    for s in report["steps"]:
+        ev = s["eval"]
+        if ev.get("route") != "documents" or s.get("status") != "answered":
+            continue
+        frags = {}
+        for src in s.get("sources") or []:
+            text = chunks.get((src.get("file_name"), src.get("chunk_index")))
+            if text and src.get("fragment") is not None:
+                frags[int(src["fragment"])] = text
+        old = (ev.get("grounding") or {}).get("grounded")
+        ev["grounding"] = check_grounding(s.get("answer", ""), frags)
+        for c in ev["checks"]:
+            if c["name"] == "grounded":
+                c["passed"] = ev["grounding"]["grounded"]
+                c["actual"] = {"units": ev["grounding"]["units"], "unsupported": ev["grounding"]["unsupported"][:3]}
+        ev["passed"] = all(c["passed"] for c in ev["checks"])
+        changed += old != ev["grounding"]["grounded"]
+    report["metrics"] = aggregate(report["steps"])
+    report.setdefault("version", {})["dir"] = safe_path(report.get("version", {}).get("dir", ""))   # отчёты до этой версии
+    report.setdefault("rescored", []).append({"at": datetime.datetime.now().isoformat(timespec="seconds"),
+                                              "grounding_rules": GROUNDING_RULES, "verdicts_changed": changed})
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    (out_dir / f"{args.rescore}.md").write_text(summary_md(report), encoding="utf-8")
+    print(f"Пересчитано по правилам {GROUNDING_RULES}: изменено вердиктов {changed}\nМетрики: {json.dumps(report['metrics'], ensure_ascii=False)}")
+    return 0
+
+
 def main(argv=None) -> int:
     force_utf8_when_redirected()
     p = argparse.ArgumentParser(description="Контрольный набор: прогон версии и сравнение")
@@ -553,9 +619,12 @@ def main(argv=None) -> int:
     p.add_argument("--no-warmup", action="store_true")
     p.add_argument("--out", default="reports/control")
     p.add_argument("--compare", nargs=2, metavar=("A", "B"))
+    p.add_argument("--rescore", metavar="LABEL", help="пересчитать проверку привязки и метрики по сохранённому отчёту")
     args = p.parse_args(argv)
     if args.compare:
         return compare(args)
+    if args.rescore:
+        return rescore(args)
     if not args.label:
         p.error("нужен --label")
     args.scenarios = str(Path(args.scenarios).resolve())

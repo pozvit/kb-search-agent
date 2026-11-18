@@ -95,3 +95,32 @@ def test_scenarios_file_is_consistent():
     assert covered <= set(ids)
     for key in ("tools", "rag", "memory", "no_information", "component_failure"):   # требование траектории
         assert spec["coverage"][key]
+
+
+# ---------------------------------------------------------------- правила v2 (по итогам разбора ответов baseline)
+
+def test_sources_line_counts_as_answer_level_citation():
+    ans = ("Цифровое ядро AIMS включает три ключевых решения:\n\n"
+           "1. Цифровой паспорт актива на всех стадиях.\n2. Цифровой пульс актива моделирует воздействия.\n\n"
+           "Источники: [Фрагмент 1]")
+    frags = {1: "Цифровой паспорт актива на всех стадиях жизненного цикла. Цифровой пульс актива моделирует воздействия."}
+    g = rc.check_grounding(ans, frags)
+    assert g["grounded"], g["unsupported"]
+
+
+def test_answer_level_citation_still_requires_support():
+    ans = "1. Компания открыла завод в Казани и наняла тысячу сотрудников.\n\nИсточники: [Фрагмент 1]"
+    g = rc.check_grounding(ans, FRAGS)
+    assert not g["grounded"] and "мало общих слов" in g["unsupported"][0]["why"]
+
+
+def test_short_cited_items_without_long_units():
+    assert rc.check_grounding("Сотрудники:\n1. Ветлугин В. [Фрагмент 1]", {1: "Команда: Ветлугин В."})["grounded"]
+    assert not rc.check_grounding("Сотрудники:\n1. Ветлугин В.", {1: "Команда: Ветлугин В."})["grounded"]
+
+
+def test_report_paths_do_not_contain_profile_name():
+    assert rc.safe_path(r"C:\Users\Ivan.Petrov\kb_baseline") == r"C:\Users\~\kb_baseline"
+    assert rc.safe_path("/home/ivan/kb") == "/home/~/kb"
+    assert rc.safe_path(str(Path.home() / "kb_baseline")).startswith("~")
+    assert rc.safe_path("../kb_baseline") == "../kb_baseline"
