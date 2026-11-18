@@ -67,7 +67,8 @@ def test_list_documents_tool(make_agent):
 
 def test_smalltalk_does_not_call_tools(make_agent):
     r = make_agent().run("Привет!")
-    assert r.status == "smalltalk" and r.tool_calls == [] and r.llm_calls == 1
+    # приветствие отвечает маршрутизатор по правилу, без вызова модели (в baseline был 1 вызов, ~6 с на CPU)
+    assert r.status == "smalltalk" and r.tool_calls == [] and r.llm_calls == 0
 
 
 def test_forced_search_when_model_skips_tool(make_agent):

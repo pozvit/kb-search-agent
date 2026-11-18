@@ -61,5 +61,15 @@ memory:
   max_messages: 6                 # 3 последних пары «вопрос-ответ»
   max_chars_per_message: 500
 
+router:
+  classifier: true                # неоднозначные вопросы классифицирует модель коротким вызовом без инструментов
+  products:                       # названия продуктов: вопрос с ними сразу идёт к подагенту «Документы»
+    - "ERGO"
+    - "SIPS"
+    - "AIMS"
+    - "IBP"
+    - "Integral 360"
+    - "Integral"
+
 validation:
   check_numbers: true             # числа в ответе сверяются с текстом фрагментов

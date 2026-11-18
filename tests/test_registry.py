@@ -570,7 +570,8 @@ def test_enumeration_with_topic_goes_to_search(catalog_config):
     ])
     r = agent.run("Какие проекты по закупкам были в медицине")
     assert r.route == "tools" and llm.calls
-    assert any(d.get("point") == "catalog_route" and d.get("routed") is False for d in r.trace.decisions())
+    decided = next(d for d in r.trace.decisions() if d.get("point") == "route_decided")
+    assert decided["route"] == "documents" and "закупкам" in decided["residual"]
 
 
 def test_empty_enumeration_is_not_found(catalog_config):

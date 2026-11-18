@@ -108,6 +108,9 @@ def base_config():
         "guardrails": {"max_query_chars": 1000, "block_secrets": True},
         "memory": {"max_messages": 6, "max_chars_per_message": 500},
         "validation": {"check_numbers": True},
+        # продукты синтетического корпуса; классификатор выключен: эти тесты проверяют подагентов,
+        # маршрутизация с классификатором — в tests/test_router.py
+        "router": {"classifier": False, "products": ["ORBIT", "LUMEN"]},
         "rag": {},
     }
 

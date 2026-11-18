@@ -224,7 +224,20 @@ class MockLLM:
     def describe(self) -> str:
         return "MockLLM (детерминированная, экстрактивная)"
 
+    _MOCK_REGISTRY = re.compile(r"(?i)проект|пропозал|отрасл|клиент|сотрудник|фарм|медиц|банк|(?<![а-яё])кто(?![а-яё])")
+    _MOCK_DOCUMENTS = re.compile(r"(?i)продукт|документ|подход|предложени|ergo|sips|aims|ibp|integral|база знаний|реестр")
+
+    def _classify(self, question: str) -> LLMReply:
+        if self._MOCK_REGISTRY.search(question):
+            return LLMReply(content="registry")
+        if self._MOCK_DOCUMENTS.search(question):
+            return LLMReply(content="documents")
+        return LLMReply(content="out_of_scope")
+
     def chat(self, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> LLMReply:
+        if messages and messages[0].get("role") == "system" and \
+                messages[0].get("content", "").startswith("Ты — классификатор"):
+            return self._classify(messages[-1].get("content", ""))
         last = messages[-1]
         users = [m["content"] for m in messages if m["role"] == "user"]
         question = users[-1] if users else ""

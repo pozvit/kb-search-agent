@@ -119,16 +119,46 @@ class CardCatalog:
                 return canon
         return raw
 
+    @staticmethod
+    def surname_stem(surname: str) -> str:
+        """
+        Основа фамилии для поиска в косвенных падежах. Окончание отбрасывается, если оно меняется при склонении:
+          «Белозёрова» -> «белозеров» (Белозёровой), «Камская» -> «камск» (Камской),
+          «Ангарский» -> «ангарск» (Ангарского); «Петров» -> «петров» (Петрова, Петровым).
+        «ё» и «е» не различаются.
+        """
+        s = surname.lower().replace("ё", "е")
+        if s.endswith(("ая", "яя", "ий", "ый", "ой")) and len(s) > 5:
+            return s[:-2]
+        if s.endswith(("а", "я")) and len(s) > 4:
+            return s[:-1]
+        return s
+
     def find_person(self, text: str) -> List[str]:
-        """Люди, упомянутые в вопросе фамилией: «какие проекты делал Петров» -> ["Петров П."]."""
-        found = []
-        for token in re.findall(r"[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?", text):
-            base = token.lower()
-            for surname, canon in self._unique_surname.items():
-                # «Петрова», «Петрову», «Петровым» -> «Петров»: окончание до 3 букв
-                if base.startswith(surname) and len(base) - len(surname) <= 3 and canon not in found:
-                    found.append(canon)
-        return found
+        """Люди, упомянутые в вопросе фамилией в любом падеже: «проекты Белозёровой» -> ["Белозёрова Б."]."""
+        tokens = [t.lower().replace("ё", "е")
+                  for t in re.findall(r"[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?", text)]
+        exact, by_stem = [], []
+        for surname, canon in self._unique_surname.items():
+            full = surname.lower().replace("ё", "е")
+            stem = self.surname_stem(surname)
+            for base in tokens:
+                if base == full and canon not in exact:
+                    exact.append(canon)
+                elif len(stem) >= 4 and base.startswith(stem) and len(base) - len(stem) <= 3 and canon not in by_stem:
+                    by_stem.append(canon)
+        # точное совпадение важнее: «Петрова» — это Петрова, а не Петров в родительном падеже
+        if exact:
+            return exact
+        # однофамильцы разного пола: «-ой», «-ою» — только у женских фамилий («Петровой» — Петрова),
+        # «-ым», «-ом», «-ому» — только у мужских («Петровым» — Петров)
+        if len(by_stem) > 1:
+            is_fem = lambda c: c.split()[0].lower().endswith(("а", "я"))
+            if any(b.endswith(("ой", "ою")) for b in tokens):
+                return [c for c in by_stem if is_fem(c)] or by_stem
+            if any(b.endswith(("ым", "ом", "ому")) for b in tokens):
+                return [c for c in by_stem if not is_fem(c)] or by_stem
+        return by_stem
 
     def services(self) -> List[str]:
         counts: Dict[str, int] = {}

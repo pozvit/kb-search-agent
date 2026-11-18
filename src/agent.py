@@ -34,8 +34,10 @@ from agent_llm import LLMReply, create_backend
 from agent_memory import ShortTermMemory
 from agent_models import (STATUS_ANSWERED, STATUS_DEGRADED, STATUS_ERROR, STATUS_NOT_FOUND,
                           STATUS_REJECTED, STATUS_SMALLTALK, AgentResponse, AgentState, ToolCall, Trace)
-from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, detect_industries, detect_period, detect_services,
-                         format_documents, format_error, format_fragments, hits_to_fragments)
+from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, format_documents, format_error, format_fragments,
+                         hits_to_fragments)
+from agents.registry_agent import card_sources, catalog_answer
+from agents.router import Router, parse_label
 
 _SMALLTALK = re.compile(
     r"(?i)^\s*(привет|здравствуй|здравствуйте|добрый (день|вечер|утро)|спасибо|благодарю|пока)\b[\s!.,)]*$")
@@ -50,23 +52,7 @@ _SHORT_FOLLOWUP = re.compile(r"(?i)^\s*(а|и|ещё|еще)\s")
 _SCOPE_WORDS = re.compile(r"(?i)(?<![а-яё])(проект\w*|пропозал\w*|предложени\w*|продукт\w*|учётн\w*|учетн\w*|"
                           r"кп|реестр\w*)(?![а-яё])|(19|20)\d{2}")
 _TOPIC_WORD = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\-]*")
-# программный маршрутизатор: перечисления и вопросы о людях отвечаются по каталогу карточек, без поиска и без LLM
-_ENUM = re.compile(r"(?i)^\s*(какие|каких|перечисли\w*|список|покажи|сколько|назови|выведи)(?![а-яё])|"
-                   r"(?<![а-яё])все\s+(проект|пропозал)")
-_REGISTRY_NOUN = re.compile(r"(?i)(?<![а-яё])(проект|пропозал|кейс|опыт)")
-_PEOPLE = re.compile(r"(?i)(?<![а-яё])(кто|сотрудник\w*|команд\w*|участ\w*|люд\w*|человек\w*|исполнител\w*|"
-                     r"делал\w*|выполнял\w*|работал\w*|партн[её]р\w*)(?![а-яё])")
-# подсчёт: «кто сделал больше всего проектов в …», «у кого много пропозалов», «топ сотрудников по …»
-_AGG = re.compile(r"(?i)(больше\s+всего|(?<![а-яё])много(?![а-яё])|чаще\w*|наибольш\w*|(?<![а-яё])топ(?![а-яё])|"
-                  r"самы[йеех]\s+опытн\w*|лидер\w*|рейтинг\w*)")
-_WHO = re.compile(r"(?i)(?<![а-яё])(кто|у\s+кого|сотрудник\w*|люди|людей|эксперт\w*)(?![а-яё])")
-_PERSON_WORK = re.compile(r"(?i)(?<![а-яё])(делал\w*|работал\w*|участвовал\w*|вел[аи]?|выполнял\w*|опыт\w*)(?![а-яё])")
-# слова, которые не задают тему вопроса-перечисления
-_ROUTER_NEUTRAL = {"прое", "проп", "кейс", "опыт", "рабо", "отра", "сфер", "обла", "сект", "году", "года", "годы",
-                   "пери", "реес", "спис", "пере", "пока", "назо", "выве", "скол", "дела", "выпо", "реал", "вели",
-                   "наше", "наши", "всег", "посл", "нача", "ране", "позж", "пред", "мног", "боль", "чаще", "наиб",
-                   "самы", "лиде", "рейт", "эксп", "сотр", "люди", "люде", "сдел", "учас", "кого", "делал",
-                   "темы", "теме", "направ", "текущ", "этом", "прош", "лет", "года"}
+# правила реестров и маршрутизации — в agents/registry_agent.py и agents/router.py
 
 _CITATION = re.compile(r"(?i)фрагмент\w*\s*((?:\d+\s*(?:,|и|;)\s*)*\d+)")
 _BRACKET_REF = re.compile(r"\[\s*Фрагмент\s+(\d+)\s*\]")
@@ -101,6 +87,7 @@ class KBAgent:
         self.llm = llm if llm is not None else create_backend(config.get("llm", {}))
         factory = retriever_factory or self._default_retriever_factory(config)
         self.tools = ToolRegistry(factory, config.get("tools", {}), catalog_path=config.get("catalog_path"))
+        self.router = Router(self.tools.catalog, config.get("router", {}))
 
         self._schemas: Optional[List[Dict[str, Any]]] = None
         self._facets_summary: Optional[Dict[str, Any]] = None
@@ -164,9 +151,18 @@ class KBAgent:
                       rule="уточняющий вопрос: термины темы из памяти будут добавлены в query поиска, "
                            "если модель их не включила")
 
-        routed = self._route_catalog(query, state, trace, started)
-        if routed is not None:
-            return routed
+        is_followup = bool(state.followup_terms) or (len(self.memory) > 0 and bool(_FOLLOWUP.search(query)))
+        decision = self.router.decide(query, state.followup_cards, is_followup,
+                                      classify=lambda q: self._classify(q, state, trace))
+        trace.add("decision", point="route_decided", **decision.trace_data())
+        if decision.route == "smalltalk":
+            state.route = "smalltalk"
+            return self._finish(state, trace, started, STATUS_SMALLTALK, P.SMALLTALK_ANSWER)
+        if decision.route == "out_of_scope":
+            state.route = "smalltalk"          # для внешних отчётов это тот же маршрут: ответ без поиска
+            return self._finish(state, trace, started, STATUS_SMALLTALK, P.OUT_OF_SCOPE_ANSWER)
+        if decision.route == "registry":
+            return self._answer_registry(decision, state, trace, started)
 
         tool_schemas = self._tool_schemas(trace)
 
@@ -427,10 +423,10 @@ class KBAgent:
 
         if not has_search and state.cards_result is not None:
             result = state.cards_result
-            answer = text or self._catalog_answer(result, "")
+            answer = text or catalog_answer(result, "")
             trace.add("validation", kind="catalog", ok=True)
             return self._finish(state, trace, started, STATUS_ANSWERED if result["total"] else STATUS_NOT_FOUND,
-                                answer, sources=self._card_sources(result["cards"]))
+                                answer, sources=card_sources(result["cards"]))
 
         if not has_search and not state.documents_listed:
             # сюда попадаем, только если все вызовы tools завершились ошибкой и LLM ответила текстом
@@ -492,148 +488,30 @@ class KBAgent:
             text = text.rstrip() + "\n\n" + "\n".join(notes)
         return self._finish(state, trace, started, STATUS_ANSWERED, text, sources=sources)
 
-    # ------------------------------------------------------------------ маршрутизатор по каталогу
+    # ------------------------------------------------------------------ маршрутизация
 
-    def _route_catalog(self, query: str, state: AgentState, trace: Trace, started: float) -> Optional[AgentResponse]:
-        """
-        Вопросы, на которые нужен полный и точный список, отвечаются выборкой из каталога карточек
-        без поиска и без LLM:
-          - люди по карточкам прошлого ответа: «кто выполнял эти проекты», «какие сотрудники это делали»;
-          - перечисление по отрасли, периоду или типу реестра: «какие проекты были в медицине»,
-            «перечисли пропозалы за 2019–2021». Если в вопросе есть другая тема («по закупкам»),
-            он уходит в обычный путь: поиск по смыслу с фильтром.
-        """
-        catalog = self.tools.catalog()
-        if catalog is None:
+    def _classify(self, query: str, state: AgentState, trace: Trace) -> Optional[str]:
+        """Короткий вызов модели без инструментов: registry | documents | out_of_scope; None — недоступна."""
+        messages = [{"role": "system", "content": P.CLASSIFIER_PROMPT}, {"role": "user", "content": query}]
+        reply = self._call_llm(messages, None, state, trace, stage="classify")
+        if reply is None:
+            state.llm_error = None          # недоступность модели обработает подагент «Документы»
             return None
-        industries = detect_industries(query, catalog.industries())
-        services = detect_services(query, catalog.services(), catalog.service_details())
-        if industries and services:
-            # одно слово и отрасль, и услуга («по логистике»): это тема услуги, а не отрасль клиента
-            from agent_tools import INDUSTRY_SYNONYMS, SERVICE_SYNONYMS, covered_words, tag_keys
-            service_phrases = [p for sv in services for p in SERVICE_SYNONYMS.get(sv, []) + tag_keys(sv) + [sv]]
-            service_words = covered_words(query, service_phrases)
-            industries = [ind for ind in industries
-                          if covered_words(query, INDUSTRY_SYNONYMS.get(ind, []) + [ind]) - service_words]
-        persons = catalog.find_person(query)
-        year_from, year_to = detect_period(query)
-        only_proposals = re.search(r"(?i)пропозал|предложени", query) and not re.search(r"(?i)проект", query)
-        card_type = "proposal" if only_proposals else None
-        scope = {k: v for k, v in (("industry", industries), ("service", services), ("person", persons),
-                                   ("year_from", year_from), ("year_to", year_to), ("card_type", card_type)) if v}
+        label = parse_label(reply.content)
+        trace.add("decision", point="classifier", label=label, raw=(reply.content or "")[:40])
+        return label
 
-        def has_other_topic() -> bool:
-            residual = self._residual_topic(query, industries, services, persons)
-            if residual:
-                trace.add("decision", point="catalog_route", routed=False, residual=residual,
-                          rule="в вопросе есть тема помимо отрасли, типа услуги и периода — нужен поиск по смыслу")
-            return bool(residual)
-
-        if _AGG.search(query) and (_WHO.search(query) or _PEOPLE.search(query)) and (
-                _REGISTRY_NOUN.search(query) or scope):
-            # проверяется первым: «кто делал много проектов в …» — не уточнение прошлого ответа, а подсчёт
-            if has_other_topic():
-                return None
-            args = {**scope, "group_by": "people"}
-            route, intro = "catalog_people_rank", "Кто чаще всего участвовал"
-        elif state.followup_cards and _PEOPLE.search(query) and not scope:
-            args = {"cards": state.followup_cards, "include_people": True}
-            route, intro = "catalog_people", "Люди по карточкам из прошлого ответа"
-        elif (_ENUM.search(query) and _REGISTRY_NOUN.search(query) and scope) or (
-                persons and (_REGISTRY_NOUN.search(query) or _PERSON_WORK.search(query))):
-            # «Проекты Сотрудник за последние 5 лет», «что делал Петров в 2020» — список карточек сотрудника
-            if has_other_topic():
-                return None
-            args = {**scope, "include_people": bool(_PEOPLE.search(query)) and not persons}
-            route, intro = "catalog_list", "В реестрах найдено"
-        else:
-            return None
-
-        state.route = route
-        trace.add("decision", point="catalog_route", routed=True, route=route,
-                  args={k: v for k, v in args.items() if k != "cards"}, cards=len(args.get("cards") or []),
-                  rule="полный список по каталогу карточек вместо top-k поиска; LLM не вызывается")
+    def _answer_registry(self, decision, state: AgentState, trace: Trace, started: float) -> AgentResponse:
+        """Подагент «Реестры»: выборка из каталога и программный ответ, без генерации."""
+        state.route = {"rank": "catalog_people_rank", "people": "catalog_people"}.get(decision.kind, "catalog_list")
         messages: List[Dict[str, Any]] = []
-        call = self._execute_and_append("list_cards", args, "router", state, trace, messages)
+        call = self._execute_and_append("list_cards", dict(decision.args), "router", state, trace, messages)
         if call.status != "success":
             return self._tool_error_response(state, trace, started, call)
         result = state.cards_result
         status = STATUS_ANSWERED if result["total"] else STATUS_NOT_FOUND
-        return self._finish(state, trace, started, status, self._catalog_answer(result, intro),
-                            sources=self._card_sources(result["cards"]))
-
-    @staticmethod
-    def _residual_topic(query: str, industries: List[str], services: Optional[List[str]] = None,
-                        persons: Optional[List[str]] = None) -> List[str]:
-        """Содержательные слова вопроса, кроме служебных, отраслевых, типа услуги, фамилий и периода."""
-        from agent_lexical import STOPWORDS, stems
-        from agent_tools import INDUSTRY_SYNONYMS, SERVICE_SYNONYMS, _matches_synonyms, covered_words
-        phrases = [p for category in industries for p in INDUSTRY_SYNONYMS.get(category, []) + [category]]
-        phrases += [p for service in services or [] for p in SERVICE_SYNONYMS.get(service, [])]
-        from agent_tools import tag_keys
-        service_stems = {st for service in services or [] for st in stems(service)}
-        phrases += [w for service in services or [] for w in tag_keys(service)]
-        surnames = {p.split()[0].lower() for p in persons or []}
-        covered = covered_words(query, phrases) if phrases else set()
-        residual = []
-        for word in re.findall(r"[a-zа-яё]+", query.lower().replace("ё", "е")):
-            if len(word) < 4 or word in STOPWORDS or word[:4] in _ROUTER_NEUTRAL:
-                continue
-            if word in covered or (phrases and _matches_synonyms(word, phrases)) or _PEOPLE.fullmatch(word):
-                continue           # то же сопоставление, что и при определении отрасли
-            if word[:4] in service_stems or any(word.startswith(sn) for sn in surnames):
-                continue
-            residual.append(word)
-        return residual
-
-    @staticmethod
-    def _catalog_answer(result: Dict[str, Any], intro: str) -> str:
-        from agent_cards import CARD_TYPE_RU, format_card_line
-        filters = result.get("filters") or {}
-        conditions = []
-        if filters.get("industry"):
-            conditions.append("отрасль: " + ", ".join(filters["industry"]))
-        if filters.get("year_from") or filters.get("year_to"):
-            conditions.append(f"период: {filters.get('year_from') or '…'}–{filters.get('year_to') or '…'}")
-        if filters.get("card_type"):
-            conditions.append("тип: " + CARD_TYPE_RU.get(filters["card_type"], filters["card_type"]))
-        if filters.get("service"):
-            conditions.append("тип услуги: " + ", ".join(filters["service"]))
-        if filters.get("person"):
-            conditions.append("сотрудник: " + ", ".join(filters["person"]))
-        cond = f" ({'; '.join(conditions)})" if conditions else ""
-        if not result["total"]:
-            return f"По условиям{cond} карточек в реестрах нет."
-        if result.get("group_by") == "people":
-            by_type = result.get("by_type", {})
-            head = (f"{intro}{cond}. Карточек: {result['total']} (проектов {by_type.get('project', 0)}, "
-                    f"пропозалов {by_type.get('proposal', 0)}), люди указаны в {result['cards_with_people']}, "
-                    f"разных людей: {result['people_total']}.")
-            if not result.get("people"):
-                return head + "\nВ этих карточках люди не указаны."
-            return (head + "\n\n" + result["text"] + "\n\nСортировка по числу проектов: пропозал — это заявка, "
-                    "а не выполненный проект. Учтены поля «Команда», «Партнёр / директор», «Имя сотрудника»; "
-                    "человек считается один раз на карточку.\nИсточник: каталог карточек реестров.")
-        lines = [f"{intro or 'Найдено'}{cond}: {result['total']}."]
-        groups: Dict[str, List[Dict[str, Any]]] = {}
-        for card in result["cards"]:
-            groups.setdefault(card.get("card_type", ""), []).append(card)
-        titles = {"project": "Проекты", "proposal": "Пропозалы", "project_accounting": "Проекты учётной базы"}
-        for card_type, cards in groups.items():
-            lines.append(f"\n{titles.get(card_type, card_type)} ({len(cards)}):")
-            lines += [format_card_line(i, c, result.get("include_people")) for i, c in enumerate(cards, start=1)]
-        if result["shown"] < result["total"]:
-            lines.append(f"\nПоказаны {result['shown']} из {result['total']}: уточните период, отрасль или тип реестра.")
-        lines.append("\nИсточник: каталог карточек реестров (data/raw_cards/cards_meta.jsonl).")
-        return "\n".join(lines)
-
-    @staticmethod
-    def _card_sources(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        keys = ("card_type", "card_id", "card_title", "year", "year_end", "industry")
-        return [{"fragment": i, "document_name": c.get("card_title", ""), "file_name": c.get("file_name", ""),
-                 "category": "", "chunk_index": "—", "score": 1.0,
-                 "card": {k: c[k] for k in keys if c.get(k) not in (None, "", [])}}
-                for i, c in enumerate(cards, start=1)]
+        return self._finish(state, trace, started, status, catalog_answer(result, decision.intro),
+                            sources=card_sources(result["cards"]))
 
     def _previous_cards_for(self, query: str) -> List[Dict[str, str]]:
         """
