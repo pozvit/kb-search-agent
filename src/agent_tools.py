@@ -135,7 +135,7 @@ def build_qdrant_filter(category: Optional[str], filters: Optional[Dict[str, Any
     фильтр по году или отрасли не попадают — фильтр по сути означает «реестры».
     """
     filters = filters or {}
-    if not category and not any(filters.get(k) for k in ("year_from", "year_to", "industry", "cards")):
+    if not category and not any(filters.get(k) for k in ("year_from", "year_to", "industry", "cards", "files")):
         return None
     from qdrant_client.http import models
     must = []
@@ -147,6 +147,8 @@ def build_qdrant_filter(category: Optional[str], filters: Optional[Dict[str, Any
         must.append(models.FieldCondition(key="year", range=models.Range(lte=filters["year_to"])))
     if filters.get("industry"):
         must.append(models.FieldCondition(key="industry", match=models.MatchAny(any=list(filters["industry"]))))
+    if filters.get("files"):
+        must.append(models.FieldCondition(key="file_name", match=models.MatchAny(any=list(filters["files"]))))
     if filters.get("cards"):
         # ID карточек уникальны только внутри своего реестра, поэтому пара (card_type, card_id)
         must.append(models.Filter(should=[
@@ -172,6 +174,8 @@ def payload_matches(meta: Dict[str, Any], category: Optional[str], filters: Opti
     if filters.get("industry"):
         if not set(meta.get("industry") or []) & set(filters["industry"]):
             return False
+    if filters.get("files") and meta.get("file_name") not in filters["files"]:
+        return False
     if filters.get("cards"):
         if not any(meta.get("card_type") == c["card_type"] and str(meta.get("card_id")) == str(c["card_id"])
                    for c in filters["cards"]):
@@ -390,7 +394,8 @@ class ToolRegistry:
         else:
             try:
                 allowed = {
-                    "search_knowledge_base": ("query", "top_k", "category", "year_from", "year_to", "industry", "cards"),
+                    "search_knowledge_base": ("query", "top_k", "category", "year_from", "year_to", "industry",
+                                              "cards", "files"),
                     "list_documents": (),
                     "list_cards": ("card_type", "industry", "service", "person", "year_from", "year_to",
                                    "include_people", "group_by", "cards", "limit"),
@@ -532,7 +537,7 @@ class ToolRegistry:
 
     def search_knowledge_base(self, query: Any = None, top_k: Any = None, category: Any = None,
                               year_from: Any = None, year_to: Any = None, industry: Any = None,
-                              cards: Any = None) -> ToolResult:
+                              cards: Any = None, files: Any = None) -> ToolResult:
         """cards — внутренний параметр агента: [{"card_type", "card_id"}] карточек прошлого ответа."""
         if not isinstance(query, str) or not query.strip():
             return _error("invalid_argument", "query обязателен и должен быть непустой строкой.")
@@ -587,8 +592,10 @@ class ToolRegistry:
         if cards is not None and not (isinstance(cards, list) and all(
                 isinstance(c, dict) and c.get("card_type") and c.get("card_id") for c in cards)):
             return _error("invalid_argument", "cards должен быть списком {card_type, card_id}.", argument="cards")
+        if files is not None and not (isinstance(files, list) and all(isinstance(f, str) for f in files)):
+            return _error("invalid_argument", "files должен быть списком имён файлов.", argument="files")
         filters = {k: v for k, v in (("year_from", y_from), ("year_to", y_to), ("industry", industries),
-                                     ("cards", cards)) if v}
+                                     ("cards", cards), ("files", files)) if v}
         supports_filters = "filters" in inspect.signature(retriever.search).parameters
         if filters and not supports_filters:
             return _error("invalid_argument", "этот индекс не поддерживает фильтры по году и отрасли.")
@@ -719,6 +726,20 @@ class ToolRegistry:
                 "text": format_people_ranking(ranking, top),
             })
         return result
+
+    def files_for_product(self, product: str) -> List[str]:
+        """Файлы документов, в названии которых есть продукт («ERGO — бизнес-симулятор…»)."""
+        retriever, failure = self._get_retriever()
+        if failure:
+            return []
+        try:
+            documents = retriever.list_documents()
+        except Exception:
+            return []
+        pattern = re.compile(r"(?<![a-zа-яё0-9])" + re.escape(product.lower()) + r"(?![a-zа-яё0-9])")
+        return sorted({d["file_name"] for d in documents
+                       if pattern.search(str(d.get("document_name", "")).lower())
+                       and not str(d.get("category", "")).startswith("internal/")})
 
     def list_documents(self) -> ToolResult:
         retriever, failure = self._get_retriever()

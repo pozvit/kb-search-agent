@@ -104,6 +104,7 @@ class AgentState:
     documents_listed: bool = False
     documents_result: Optional[Dict[str, Any]] = None
     cards_result: Optional[Dict[str, Any]] = None        # результат list_cards (перечисление по каталогу)
+    document_filter: List[str] = field(default_factory=list)  # файлы документа продукта из вопроса (ставит код)
     followup_terms: List[str] = field(default_factory=list)   # термины темы из памяти для уточняющего вопроса
     followup_cards: List[Dict[str, str]] = field(default_factory=list)   # карточки прошлого ответа для «эти проекты»
     last_tool_error: Optional[ToolCall] = None

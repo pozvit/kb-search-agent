@@ -37,14 +37,15 @@ class FakeIndex:
         self.fail_on_search = fail_on_search
         self.search_calls = []
 
-    def search(self, query, top_k, category=None):
-        self.search_calls.append({"query": query, "top_k": top_k, "category": category})
+    def search(self, query, top_k, category=None, filters=None):
+        from agent_tools import payload_matches
+        self.search_calls.append({"query": query, "top_k": top_k, "category": category, "filters": filters})
         if self.fail_on_search:
             raise self.fail_on_search
         q = set(self._stems(query))
         scored = []
         for i, c in enumerate(self.corpus):
-            if category and c["metadata"]["category"] != category:
+            if not payload_matches(c["metadata"], category, filters):
                 continue
             overlap = len(q & set(self._stems(c["text"] + " " + c["metadata"]["document_name"])))
             if overlap:

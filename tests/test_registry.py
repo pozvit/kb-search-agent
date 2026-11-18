@@ -225,7 +225,8 @@ def test_tool_schema_lists_values_from_index():
     assert "industry" not in build_tool_schemas(None)[0]["function"]["parameters"]["properties"]
 
 
-def test_agent_passes_filters_and_shows_cards(base_config):
+def test_registry_filters_from_model_are_dropped_cards_still_shown(base_config):
+    """Шаг 2.4.2: у подагента «Документы» нет фильтров реестра; если модель их передала — они отбрасываются."""
     from agent import KBAgent
     llm = ScriptedLLM([
         reply(tool_calls=[{"name": "search_knowledge_base",
@@ -237,12 +238,12 @@ def test_agent_passes_filters_and_shows_cards(base_config):
     agent = KBAgent(base_config, llm=llm, retriever_factory=lambda: index)
     r = agent.run("Какие проекты по ТОиР в металлургии были после 2018 года?")
     assert r.status == "answered"
-    assert index.calls[0]["filters"] == {"year_from": 2018, "industry": ["Industrial goods"]}
+    assert not (index.calls[0]["filters"] or {}) and index.calls[0]["category"] is None
+    assert any("category, industry, year_from" in w for w in r.warnings)
     assert r.sources[0]["card"]["card_title"] == "Стратегия ТОиР"
-    tool_msg = llm.calls[1]["messages"][-1]["content"]
-    assert "Карточка: Стратегия ТОиР (проект | 2019–2020 | Industrial goods" in tool_msg
-    schema_props = llm.calls[0]["messages"] and agent._schemas[0]["function"]["parameters"]["properties"]
-    assert "industry" in schema_props
+    assert "Карточка: Стратегия ТОиР (проект | 2019–2020 | Industrial goods" in llm.calls[1]["messages"][-1]["content"]
+    offered = llm.calls[0]
+    assert offered["tools"] is True
 
 
 # ------------------------------------------------------------------ фильтр Qdrant
@@ -353,16 +354,17 @@ def test_followup_with_new_scope_is_a_new_search(base_config, question):
     assert "cards" not in (index.calls[-1]["filters"] or {})
 
 
-def test_model_can_request_previous_results(base_config):
+def test_previous_results_argument_from_model_is_dropped(base_config):
+    """Уточнения по прошлому ответу решают правила агента; аргумент previous_results от модели не принимается."""
     agent, index = med_agent(base_config, FIRST + [
         reply(tool_calls=[{"name": "search_knowledge_base",
                            "arguments": {"query": "команда", "previous_results": True}}]),
         reply("Иванов И. [Фрагмент 3]."),
     ])
     agent.run("Какие проекты были в медицине?")
-    agent.run("Расскажи про команду")                            # без отсылки — решает модель
-    assert len(index.calls[-1]["filters"]["cards"]) == 2
-    assert "previous_results" not in agent._schemas and "previous_results" not in index.calls[-1]
+    r = agent.run("Расскажи про команду")                        # без отсылки к прошлому ответу
+    assert "cards" not in (index.calls[-1]["filters"] or {})
+    assert any("previous_results" in w for w in r.warnings)
 
 
 def test_reset_forgets_cards(base_config):
@@ -477,19 +479,14 @@ class EnOnlyIndex(MedIndex):
 
 @pytest.mark.parametrize("value", ["Здравоохранение и фармацевтика", "медицина", "фармацевтика"],
                          ids=["full_ru", "medicine", "pharma"])
-def test_russian_industry_resolves_to_registry_category(base_config, value):
-    """Воспроизводит ошибку: модель передала русскую отрасль, которой после исключения checked нет в индексе."""
-    from agent import KBAgent
-    index = EnOnlyIndex()
-    llm = ScriptedLLM([reply(tool_calls=[{"name": "search_knowledge_base",
-                                          "arguments": {"query": "проекты", "industry": value}}]),
-                       reply("Стратегия фармкомпании [Фрагмент 1].")])
-    r = KBAgent(base_config, llm=llm, retriever_factory=lambda: index).run("Какие проекты были в медицине")
-    assert r.status == "answered" and index.calls[-1]["filters"]["industry"] == ["Pharma & HC"]
-    assert r.llm_calls == 2
+def test_russian_industry_resolves_to_registry_category(value):
+    """Инструмент сопоставляет русскую отрасль с категорией индекса (им пользуется подагент «Реестры»)."""
+    tools = ToolRegistry(lambda: EnOnlyIndex(), {"search": {"max_top_k": 10}})
+    r, _ = tools.execute("search_knowledge_base", {"query": "проекты", "industry": value})
+    assert r["status"] == "success" and r["filters"]["industry"] == ["Pharma & HC"]
 
 
-def test_invalid_filter_from_model_is_dropped_not_fatal(base_config):
+def test_unknown_industry_from_model_is_dropped_before_tool(base_config):
     from agent import KBAgent
     index = EnOnlyIndex()
     llm = ScriptedLLM([reply(tool_calls=[{"name": "search_knowledge_base",
@@ -498,8 +495,8 @@ def test_invalid_filter_from_model_is_dropped_not_fatal(base_config):
     r = KBAgent(base_config, llm=llm, retriever_factory=lambda: index).run("Какие проекты были в космической отрасли")
     assert r.status == "answered" and r.llm_calls == 2
     assert "industry" not in (index.calls[-1]["filters"] or {})
-    assert any("фильтр industry" in w for w in r.warnings)
-    assert any(d.get("point") == "drop_invalid_filter" for d in r.trace.decisions())
+    assert any("аргументы вне схемы" in w for w in r.warnings)
+    assert any(d.get("point") == "drop_extra_arguments" for d in r.trace.decisions())
 
 
 def test_industry_hints_in_tool_schema():
@@ -580,17 +577,17 @@ def test_empty_enumeration_is_not_found(catalog_config):
     assert r.status == "not_found" and "карточек в реестрах нет" in r.answer
 
 
-def test_model_can_call_list_cards(catalog_config):
+def test_documents_subagent_cannot_call_list_cards(catalog_config):
+    """list_cards — инструмент подагента «Реестры»; модели подагента «Документы» он не доступен."""
     agent, llm = catalog_agent(catalog_config, [
-        reply(tool_calls=[{"name": "list_cards", "arguments": {"industry": "Pharma & HC (медицина, фармацевтика)",
-                                                               "card_type": "project"}}]),
-        reply("Два проекта: Фармстратегия и Курорты."),
+        reply(tool_calls=[{"name": "list_cards", "arguments": {"industry": "Pharma & HC", "card_type": "project"}}]),
+        reply(tool_calls=[{"name": "search_knowledge_base", "arguments": {"query": "фарма"}}]),
+        reply("Стратегия фармкомпании [Фрагмент 1]."),
     ])
-    r = agent.run("Расскажи, что мы делали для фармы")
-    assert r.status == "answered" and r.tool_names == ["list_cards"] and len(r.sources) == 2
-    tool_msg = llm.calls[1]["messages"][-1]["content"]
-    assert "Карточек по условиям: 2" in tool_msg
-    assert any(s["function"]["name"] == "list_cards" for s in agent._schemas)
+    r = agent.run("Расскажи о наших материалах по фармацевтике")
+    assert r.tool_calls[0].name == "list_cards" and r.tool_calls[0].error_code == "unknown_tool"
+    assert r.tool_calls[1].status == "success" and r.status == "answered"
+    assert "ОШИБКА [unknown_tool]" in llm.calls[1]["messages"][-1]["content"]
 
 
 @pytest.mark.parametrize("args, fragment", [
@@ -702,17 +699,12 @@ def test_logistics_is_service_not_industry(people_config):
     assert r.route == "catalog_people_rank" and "Орлов О." in r.answer and "отрасль" not in r.answer.splitlines()[0]
 
 
-def test_model_can_request_people_ranking(people_config):
-    agent, llm = catalog_agent(people_config, [
-        reply(tool_calls=[{"name": "list_cards", "arguments": {"service": "операционная эффективность",
-                                                               "group_by": "people"}}]),
-        reply("Чаще всего — Иванов И."),
-    ])
-    r = agent.run("Посоветуй эксперта, с кем обсудить операционку")
-    assert r.status == "answered" and r.tool_names == ["list_cards"]
-    assert "Иванов И. — проектов 2" in llm.calls[1]["messages"][-1]["content"]
-    props = next(s for s in agent._schemas if s["function"]["name"] == "list_cards")["function"]["parameters"]["properties"]
-    assert "group_by" in props and "Операционная эффективность" in props["service"]["description"]
+def test_people_ranking_by_tool_and_by_router(people_config):
+    agent, llm = catalog_agent(people_config)
+    res, _ = agent.tools.execute("list_cards", {"service": "операционная эффективность", "group_by": "people"})
+    assert "Иванов И. — проектов 2" in res["text"]
+    r = agent.run("Кто чаще всего делал проекты в операционной эффективности?")
+    assert r.route == "catalog_people_rank" and r.llm_calls == 0 and "Иванов И. — проектов 2" in r.answer
 
 
 def test_latin_spelling_merged_with_cyrillic(tmp_path):

@@ -89,8 +89,6 @@ class KBAgent:
         self.tools = ToolRegistry(factory, config.get("tools", {}), catalog_path=config.get("catalog_path"))
         self.router = Router(self.tools.catalog, config.get("router", {}))
 
-        self._schemas: Optional[List[Dict[str, Any]]] = None
-        self._facets_summary: Optional[Dict[str, Any]] = None
 
         mem_cfg = config.get("memory", {})
         self.memory = memory if memory is not None else ShortTermMemory(
@@ -164,9 +162,17 @@ class KBAgent:
         if decision.route == "registry":
             return self._answer_registry(decision, state, trace, started)
 
-        tool_schemas = self._tool_schemas(trace)
+        # --- подагент «Документы» ----------------------------------------------
+        product = decision.details.get("product")
+        if product:
+            files = self.tools.files_for_product(product)
+            if files:
+                state.document_filter = files
+                trace.add("decision", point="document_filter", product=product, files=files,
+                          rule="фильтр по документу продукта из вопроса ставит код, а не модель")
+        tool_schemas = P.DOCUMENT_TOOL_SCHEMAS
 
-        messages: List[Dict[str, Any]] = [{"role": "system", "content": P.SYSTEM_PROMPT}]
+        messages: List[Dict[str, Any]] = [{"role": "system", "content": P.DOCUMENTS_PROMPT}]
         messages += self.memory.messages()
         messages.append({"role": "user", "content": query})
 
@@ -239,23 +245,6 @@ class KBAgent:
     # Шаги
     # =====================================================================
 
-    def _tool_schemas(self, trace: Trace) -> List[Dict[str, Any]]:
-        """Схемы инструментов с допустимыми значениями фильтров из индекса; строятся один раз."""
-        if self._schemas is None:
-            facets = self.tools.facets()
-            catalog = self.tools.catalog()
-            self._schemas = P.build_tool_schemas(facets, with_catalog=catalog is not None,
-                                                 services=catalog.services() if catalog else None)
-            self._facets_summary = {
-                "categories": len((facets or {}).get("categories") or {}),
-                "industries": len((facets or {}).get("industries") or {}),
-                "years": [(facets or {}).get("year_min"), (facets or {}).get("year_max")],
-            } if facets else None
-        trace.add("decision", point="tool_schema", facets=self._facets_summary,
-                  rule="допустимые значения фильтров взяты из индекса" if self._facets_summary
-                  else "фасеты недоступны: базовая схема инструментов")
-        return self._schemas
-
     def _call_llm(self, messages, tools, state: AgentState, trace: Trace, stage: str) -> Optional[LLMReply]:
         state.llm_calls += 1
         try:
@@ -284,6 +273,21 @@ class KBAgent:
     def _execute_and_append(self, name: str, arguments: Dict[str, Any], source: str,
                             state: AgentState, trace: Trace, messages: List[Dict[str, Any]]) -> ToolCall:
         args = dict(arguments) if isinstance(arguments, dict) else arguments
+        if source == "llm" and isinstance(args, dict):
+            allowed = P.DOCUMENT_TOOL_ARGS.get(name)
+            if allowed is None:
+                # инструмента нет в схеме подагента «Документы» (например, list_cards): не выполняем
+                return self._reject_tool(name, args, state, trace, messages)
+            extra = sorted(set(args) - allowed)
+            if extra:
+                for key in extra:
+                    args.pop(key)
+                trace.add("decision", point="drop_extra_arguments", tool=name, dropped=extra,
+                          rule="аргументы вне схемы подагента отбрасываются до вызова инструмента")
+                state.warnings.append(f"аргументы вне схемы отброшены: {', '.join(extra)}")
+        if name == "search_knowledge_base" and isinstance(args, dict) and state.document_filter \
+                and "files" not in args:
+            args["files"] = list(state.document_filter)
         if name in ("search_knowledge_base", "list_cards") and isinstance(args, dict):
             self._apply_previous_cards(args, state, trace, bump_top_k=(name == "search_knowledge_base"))
         if name == "search_knowledge_base" and isinstance(args, dict) and "top_k" in state.locked_params:
@@ -324,6 +328,17 @@ class KBAgent:
             result, latency = self.tools.execute(name, retry_args)
             call.latency_ms += latency
 
+        if (result.get("status") == "success" and name == "search_knowledge_base" and not result.get("count")
+                and isinstance(args, dict) and args.get("files")):
+            # по документу продукта ничего не нашлось — ищем по всей базе, но говорим об этом
+            retry_args = {k: v for k, v in args.items() if k != "files"}
+            trace.add("decision", point="document_filter_fallback", files=args["files"],
+                      action="повтор поиска без фильтра по документу")
+            state.warnings.append("по документу продукта из вопроса ничего не найдено, поиск выполнен по всей базе")
+            call.arguments = retry_args
+            result, latency = self.tools.execute(name, retry_args)
+            call.latency_ms += latency
+
         if result.get("status") != "success":
             call.status, call.error_code, call.error = "error", result.get("error_code"), result.get("error")
             state.last_tool_error = call
@@ -359,6 +374,17 @@ class KBAgent:
             content = format_documents(result)
 
         messages.append({"role": "tool", "content": content, "tool_name": name})
+        return call
+
+    def _reject_tool(self, name: str, args: Dict[str, Any], state: AgentState, trace: Trace,
+                     messages: List[Dict[str, Any]]) -> ToolCall:
+        call = ToolCall(name=name, arguments=args, iteration=state.iteration, source="llm",
+                        status="error", error_code="unknown_tool",
+                        error=f"инструмент {name} недоступен подагенту «Документы»")
+        state.tool_calls.append(call)
+        state.last_tool_error = call
+        trace.add("tool_error", name=name, error_code=call.error_code, error=call.error, latency_ms=0)
+        messages.append({"role": "tool", "content": f"ОШИБКА [unknown_tool]: {call.error}", "tool_name": name})
         return call
 
     def _check_stop_after_tools(self, state: AgentState, trace: Trace, started: float) -> Optional[AgentResponse]:
