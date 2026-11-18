@@ -524,7 +524,22 @@ def compare(args) -> int:
     return 0
 
 
+def force_utf8_when_redirected() -> None:
+    """
+    При выводе в конвейер или файл (| Tee-Object, > out.txt) Python на Windows кодирует текст
+    в системной кодировке (cp1252/cp1251) и падает на кириллице. Перенаправленные потоки
+    переводим в UTF-8; вывод прямо в консоль не трогаем. Действует и на модули проверяемой версии.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if hasattr(stream, "reconfigure") and not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            pass
+
+
 def main(argv=None) -> int:
+    force_utf8_when_redirected()
     p = argparse.ArgumentParser(description="Контрольный набор: прогон версии и сравнение")
     p.add_argument("--version-dir", default=".")
     p.add_argument("--label")
