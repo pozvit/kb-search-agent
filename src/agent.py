@@ -32,10 +32,11 @@ from agent_guardrails import check_query, extract_locked_params
 from agent_lexical import stems
 from agent_llm import LLMReply, create_backend
 from agent_memory import ShortTermMemory
-from agent_models import (STATUS_ANSWERED, STATUS_DEGRADED, STATUS_ERROR, STATUS_NOT_FOUND,
+from agent_models import (STATUS_ANSWERED, STATUS_DEGRADED, STATUS_ERROR, STATUS_ESCALATED, STATUS_NOT_FOUND,
                           STATUS_REJECTED, STATUS_SMALLTALK, AgentResponse, AgentState, ToolCall, Trace)
 from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, format_documents, format_error, format_fragments,
                          hits_to_fragments)
+from agents.grounding import check_grounding
 from agents.registry_agent import card_sources, catalog_answer
 from agents.router import Router, parse_label
 
@@ -56,7 +57,6 @@ _TOPIC_WORD = re.compile(r"[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\-]*
 
 _CITATION = re.compile(r"(?i)фрагмент\w*\s*((?:\d+\s*(?:,|и|;)\s*)*\d+)")
 _BRACKET_REF = re.compile(r"\[\s*Фрагмент\s+(\d+)\s*\]")
-_NUMBER = re.compile(r"(?<![\w.])\d+(?:[ \u00a0]\d{3})*(?:[.,]\d+)?")
 _NOT_FOUND_NORMALIZED = P.NOT_FOUND_ANSWER.lower().rstrip(".")
 
 # ошибки, после которых повторять вызов бессмысленно: сразу шаблонный ответ
@@ -82,7 +82,11 @@ class KBAgent:
         self.max_chars_per_chunk = int(ctx_cfg.get("max_chars_per_chunk", 2000))
         self.max_context_chars = int(ctx_cfg.get("max_context_chars", 8000))
 
-        self.check_numbers = bool(config.get("validation", {}).get("check_numbers", True))
+        grounding_cfg = config.get("grounding", {})
+        self.min_overlap = float(grounding_cfg.get("min_overlap", 0.5))
+        self.min_terms = int(grounding_cfg.get("min_terms", 3))
+        self.max_regenerations = int(grounding_cfg.get("max_regenerations", 1))
+        self.owners = (config.get("escalation", {}) or {}).get("owners", {}) or {}
 
         self.llm = llm if llm is not None else create_backend(config.get("llm", {}))
         factory = retriever_factory or self._default_retriever_factory(config)
@@ -239,7 +243,7 @@ class KBAgent:
                 return self._degraded(state, trace, started, query)
             final_text = reply.content
 
-        return self._compose_final(state, trace, started, final_text or "")
+        return self._compose_final(state, trace, started, final_text or "", messages)
 
     # =====================================================================
     # Шаги
@@ -376,6 +380,19 @@ class KBAgent:
         messages.append({"role": "tool", "content": content, "tool_name": name})
         return call
 
+    def _ungrounded_response(self, state: AgentState, trace: Trace, started: float) -> AgentResponse:
+        """E1: подтвердить ответ источниками не удалось — уверенный ответ не выдаётся, вопрос требует человека."""
+        owner = self.owners.get("ungrounded_answer", "владелец базы коммерческих предложений")
+        previews = "\n\n".join(
+            f"[Фрагмент {f.number}] {f.document_name} ({f.file_name})\n{f.text[:300]}{'…' if len(f.text) > 300 else ''}"
+            for f in state.fragments[:4]) or "фрагментов нет"
+        trace.add("decision", point="escalation", reason="ungrounded_answer", owner=owner,
+                  rule="E1: ответ не прошёл проверку привязки после перегенерации")
+        escalation = {"id": None, "reason": "ungrounded_answer", "owner": owner, "queued": False}
+        return self._finish(state, trace, started, STATUS_ESCALATED, P.UNGROUNDED_TEMPLATE.format(
+            owner=owner, fragments=previews), sources=[f.source_dict() for f in state.fragments],
+            remember=False, escalation=escalation)
+
     def _reject_tool(self, name: str, args: Dict[str, Any], state: AgentState, trace: Trace,
                      messages: List[Dict[str, Any]]) -> ToolCall:
         call = ToolCall(name=name, arguments=args, iteration=state.iteration, source="llm",
@@ -443,7 +460,8 @@ class KBAgent:
     # Валидация ответа
     # =====================================================================
 
-    def _compose_final(self, state: AgentState, trace: Trace, started: float, text: str) -> AgentResponse:
+    def _compose_final(self, state: AgentState, trace: Trace, started: float, text: str,
+                       messages: Optional[List[Dict[str, Any]]] = None, regenerations: int = 0) -> AgentResponse:
         text = (text or "").strip()
         has_search = bool(state.successful_calls("search_knowledge_base"))
 
@@ -467,6 +485,12 @@ class KBAgent:
             trace.add("validation", kind="documents", ok=True)
             return self._finish(state, trace, started, STATUS_ANSWERED, answer)
 
+        if _NOT_FOUND_NORMALIZED in text.lower().replace("«", "").replace("»", "") or not text:
+            if regenerations:
+                # первый ответ был содержательным, но не подтвердился, а после перегенерации «нет информации»:
+                # это не честное «данных нет», а непроверенный ответ — E1
+                trace.add("validation", kind="not_found_after_regeneration", ok=False)
+                return self._ungrounded_response(state, trace, started)
         if _NOT_FOUND_NORMALIZED in text.lower().replace("«", "").replace("»", ""):
             trace.add("validation", kind="not_found_phrase", ok=True)
             return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
@@ -488,31 +512,30 @@ class KBAgent:
             state.warnings.append(f"удалены ссылки на несуществующие фрагменты: {invalid}")
         trace.add("validation", kind="citations", cited=sorted(cited), valid=valid_cited, invalid=invalid)
 
-        notes: List[str] = []
-        if valid_cited:
-            sources = [f.source_dict() for f in state.fragments if f.number in valid_cited]
-        else:
-            sources = [f.source_dict() for f in state.fragments]
-            state.warnings.append("модель не сослалась ни на один фрагмент")
-            notes.append("⚠️ Модель не указала, на каких фрагментах основан ответ — сверьте его с источниками.")
+        # проверка привязки: каждое утверждение — с процитированным фрагментом, где оно есть (Q1, E1)
+        fragments = {f.number: f.text for f in state.fragments}
+        check = check_grounding(text, fragments, self.min_overlap, self.min_terms)
+        state.grounding = {**check.summary(), "regenerations": regenerations}
+        trace.add("validation", kind="grounding", grounded=check.grounded, units=check.units,
+                  unsupported=[u["why"] for u in check.unsupported][:5], regenerations=regenerations)
+        if check.grounded:
+            cited_numbers = set(check.cited) or set(valid_cited)
+            sources = [f.source_dict() for f in state.fragments if f.number in cited_numbers] or \
+                [f.source_dict() for f in state.fragments]
+            return self._finish(state, trace, started, STATUS_ANSWERED, text, sources=sources)
 
-        if self.check_numbers:
-            context_text = self._normalize_numbers(" ".join(f.text for f in state.fragments))
-            unconfirmed = []
-            for raw in _NUMBER.findall(self._strip_refs(text)):
-                norm = self._normalize_numbers(raw)
-                if len(norm.replace(".", "")) < 2:
-                    continue          # одиночные цифры (нумерация списка) не проверяем
-                if norm not in context_text and raw not in unconfirmed:
-                    unconfirmed.append(raw)
-            trace.add("validation", kind="numbers", unconfirmed=unconfirmed)
-            if unconfirmed:
-                state.warnings.append(f"числа не найдены во фрагментах: {unconfirmed}")
-                notes.append("⚠️ Не подтверждены текстом фрагментов: " + ", ".join(unconfirmed))
+        if regenerations < self.max_regenerations and messages is not None:
+            problems = "\n".join(f"- «{u['unit']}» — {u['why']}" for u in check.unsupported[:6])
+            feedback = P.REGENERATE_PROMPT.format(problems=problems, not_found=P.NOT_FOUND_ANSWER)
+            retry_messages = messages + [{"role": "assistant", "content": text}, {"role": "user", "content": feedback}]
+            trace.add("decision", point="regenerate", unsupported=len(check.unsupported),
+                      rule="ответ не подкреплён источниками — одна перегенерация по тем же фрагментам, без нового поиска")
+            reply = self._call_llm(retry_messages, None, state, trace, stage="regenerate")
+            if reply is None:
+                return self._ungrounded_response(state, trace, started)
+            return self._compose_final(state, trace, started, reply.content, retry_messages, regenerations + 1)
 
-        if notes:
-            text = text.rstrip() + "\n\n" + "\n".join(notes)
-        return self._finish(state, trace, started, STATUS_ANSWERED, text, sources=sources)
+        return self._ungrounded_response(state, trace, started)
 
     # ------------------------------------------------------------------ маршрутизация
 
@@ -621,22 +644,13 @@ class KBAgent:
     def _term_keys(self, text: str) -> set:
         return {k for k in (self._term_key(w) for w in _TOPIC_WORD.findall(text)) if k}
 
-    @staticmethod
-    def _strip_refs(text: str) -> str:
-        return re.sub(r"(?i)фрагмент\w*\s*((?:\d+\s*(?:,|и|;)\s*)*\d+)", " ", text)
-
-    @staticmethod
-    def _normalize_numbers(text: str) -> str:
-        text = re.sub(r"(?<=\d)[ \u00a0](?=\d{3}\b)", "", text)
-        return text.replace(",", ".")
-
     # =====================================================================
     # Завершение
     # =====================================================================
 
     def _finish(self, state: AgentState, trace: Trace, started: float, status: str, answer: str,
                 error_code: Optional[str] = None, sources: Optional[List[Dict[str, Any]]] = None,
-                remember: bool = True) -> AgentResponse:
+                remember: bool = True, escalation: Optional[Dict[str, Any]] = None) -> AgentResponse:
         if status == STATUS_ANSWERED and sources:
             cited_cards = [{"card_type": s["card"]["card_type"], "card_id": s["card"]["card_id"],
                             "card_title": s["card"].get("card_title", "")}
@@ -662,4 +676,6 @@ class KBAgent:
             trace=trace,
             memory_size=len(self.memory),
             duration_ms=int((time.monotonic() - started) * 1000),
+            escalation=escalation,
+            grounding=state.grounding,
         )

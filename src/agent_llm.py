@@ -239,6 +239,9 @@ class MockLLM:
                 messages[0].get("content", "").startswith("Ты — классификатор"):
             return self._classify(messages[-1].get("content", ""))
         last = messages[-1]
+        if last.get("role") == "user" and last.get("content", "").startswith("Ответ не прошёл проверку"):
+            users = [m["content"] for m in messages if m["role"] == "user"][:-1]
+            return self._answer(users[-1] if users else "", users[:-1], messages)
         users = [m["content"] for m in messages if m["role"] == "user"]
         question = users[-1] if users else ""
 

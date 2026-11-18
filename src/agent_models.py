@@ -16,9 +16,10 @@ STATUS_REJECTED = "rejected"      # запрос отклонён guardrails д�
 STATUS_ERROR = "error"            # tool завершился ошибкой / некорректные параметры
 STATUS_DEGRADED = "degraded"      # LLM недоступна: показаны найденные фрагменты без генерации
 STATUS_SMALLTALK = "smalltalk"    # приветствие / вопрос вне базы, поиск не нужен
+STATUS_ESCALATED = "escalated"    # уверенного ответа нет: вопрос передаётся человеку (правила E1–E4)
 
 ALL_STATUSES = (STATUS_ANSWERED, STATUS_NOT_FOUND, STATUS_REJECTED,
-                STATUS_ERROR, STATUS_DEGRADED, STATUS_SMALLTALK)
+                STATUS_ERROR, STATUS_DEGRADED, STATUS_SMALLTALK, STATUS_ESCALATED)
 
 
 @dataclass
@@ -103,6 +104,7 @@ class AgentState:
     fragments: List[Fragment] = field(default_factory=list)
     documents_listed: bool = False
     documents_result: Optional[Dict[str, Any]] = None
+    grounding: Optional[Dict[str, Any]] = None     # итог проверки привязки (заполняется в _compose_final)
     cards_result: Optional[Dict[str, Any]] = None        # результат list_cards (перечисление по каталогу)
     document_filter: List[str] = field(default_factory=list)  # файлы документа продукта из вопроса (ставит код)
     followup_terms: List[str] = field(default_factory=list)   # термины темы из памяти для уточняющего вопроса
@@ -142,6 +144,8 @@ class AgentResponse:
     trace: Trace
     memory_size: int = 0
     duration_ms: int = 0
+    escalation: Optional[Dict[str, Any]] = None    # {id, reason, owner, queued} при статусе escalated
+    grounding: Optional[Dict[str, Any]] = None     # итог проверки привязки ответа подагента «Документы»
 
     @property
     def tool_names(self) -> List[str]:
@@ -159,6 +163,8 @@ class AgentResponse:
             "error_code": self.error_code,
             "memory_size": self.memory_size,
             "duration_ms": self.duration_ms,
+            "escalation": self.escalation,
+            "grounding": self.grounding,
         }
         if include_trace:
             data["trace"] = self.trace.to_list()

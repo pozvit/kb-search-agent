@@ -222,19 +222,45 @@ def test_invalid_citations_are_removed(make_agent):
     assert [s["fragment"] for s in r.sources] == [1]
 
 
-def test_unconfirmed_numbers_are_flagged(make_agent):
+def test_unconfirmed_number_triggers_regeneration(make_agent):
+    """Шаг 2.4.3: чужое число — не пометка, а перегенерация; исправленный ответ проходит."""
     llm = ScriptedLLM([
         reply(tool_calls=[search_call("эффекты ORBIT")]),
-        reply("Простои сократились на 45% [Фрагмент 1]."),
+        reply("Внеплановые простои оборудования сократились на 45% [Фрагмент 1]."),
+        reply("Внеплановые простои оборудования сократились на 18% [Фрагмент 1]."),
     ])
     r = make_agent(llm=llm).run("Какие эффекты ORBIT?")
-    assert any("45" in w for w in r.warnings) and "Не подтверждены" in r.answer
+    assert r.status == "answered" and "18%" in r.answer and r.grounding["regenerations"] == 1
+    assert "45" in llm.calls[2]["messages"][-1]["content"]           # модели сказали, что именно не так
+    assert llm.calls[2]["tools"] is False                              # перегенерация без нового поиска
 
 
-def test_answer_without_citations_is_marked(make_agent):
-    llm = ScriptedLLM([reply(tool_calls=[search_call("ORBIT")]), reply("ORBIT — платформа ремонтов.")])
+def test_unconfirmed_number_twice_escalates(make_agent):
+    llm = ScriptedLLM([
+        reply(tool_calls=[search_call("эффекты ORBIT")]),
+        reply("Внеплановые простои оборудования сократились на 45% [Фрагмент 1]."),
+        reply("Внеплановые простои оборудования сократились на 45% [Фрагмент 1]."),
+    ])
+    r = make_agent(llm=llm).run("Какие эффекты ORBIT?")
+    assert r.status == "escalated" and r.escalation["reason"] == "ungrounded_answer"
+    assert "45%" not in r.answer and "проверки человеком" in r.answer
+
+
+def test_answer_without_citations_is_regenerated(make_agent):
+    """Замечание эксперта: ответ без ссылок больше не получает answered."""
+    llm = ScriptedLLM([reply(tool_calls=[search_call("ORBIT")]),
+                       reply("ORBIT — платформа планирования ремонтов оборудования."),
+                       reply("ORBIT — платформа планирования ремонтов оборудования [Фрагмент 1].")])
     r = make_agent(llm=llm).run("Что такое ORBIT?")
-    assert r.status == "answered" and "Модель не указала" in r.answer
+    assert r.status == "answered" and r.grounding["regenerations"] == 1 and r.grounding["grounded"]
+
+
+def test_answer_without_citations_twice_escalates(make_agent):
+    llm = ScriptedLLM([reply(tool_calls=[search_call("ORBIT")]),
+                       reply("ORBIT — платформа планирования ремонтов оборудования."),
+                       reply("ORBIT — платформа планирования ремонтов оборудования.")])
+    r = make_agent(llm=llm).run("Что такое ORBIT?")
+    assert r.status == "escalated" and r.escalation["reason"] == "ungrounded_answer" and r.sources
 
 
 def test_iteration_limit_forces_final_answer(make_agent):

@@ -320,7 +320,7 @@ def test_followup_restricts_search_to_cards_of_previous_answer(base_config):
     """Воспроизводит диалог: «кто делал эти проекты?» раньше искал по всей базе и находил чужие КП."""
     agent, index = med_agent(base_config, FIRST + [
         reply("Не знаю, нужно поискать."),                       # модель не вызвала поиск -> forced_search
-        reply("Иванов И. [Фрагмент 3], Петров П. [Фрагмент 4]."),
+        reply("Иванов И. [Фрагмент 1], Петров П. [Фрагмент 2]."),
     ])
     agent.run("Какие проекты были в медицине?")
     assert [c["card_id"] for c in agent.memory.last_cards()] == ["11_001 AAA", "18_002 BBB"]
@@ -335,7 +335,7 @@ def test_followup_restricts_search_to_cards_of_previous_answer(base_config):
 def test_short_followup_without_new_scope_also_restricts(base_config):
     agent, index = med_agent(base_config, FIRST + [
         reply(tool_calls=[{"name": "search_knowledge_base", "arguments": {"query": "по людям"}}]),
-        reply("Иванов И. [Фрагмент 3]."),
+        reply("Иванов И. [Фрагмент 1]."),
     ])
     agent.run("Какие проекты были в медицине?")
     agent.run("А по людям?")
@@ -433,7 +433,7 @@ def test_people_fields_first_and_no_duplicate_participants(tmp_path):
 
 def test_this_refers_to_previous_cards(base_config):
     agent, index = med_agent(base_config, FIRST + [
-        reply("Нужно поискать."), reply("Иванов И. [Фрагмент 3]."),
+        reply("Нужно поискать."), reply("Иванов И. [Фрагмент 1]."),
     ])
     agent.run("Какие проекты были в медицине?")
     agent.run("Какие сотрудники это делали")
