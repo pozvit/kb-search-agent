@@ -361,7 +361,7 @@ RetrieverFactory = Callable[[], Any]
 
 class ToolRegistry:
     def __init__(self, retriever_factory: RetrieverFactory, tool_config: Dict[str, Any],
-                 catalog_path: Optional[str] = None):
+                 catalog_path: Optional[str] = None, escalation_queue: Any = None):
         self._factory = retriever_factory
         self._retriever = None
         self._catalog_path = catalog_path
@@ -378,6 +378,9 @@ class ToolRegistry:
         }
         if catalog_path:
             self._handlers["list_cards"] = self.list_cards
+        self._escalation = escalation_queue
+        if escalation_queue is not None:
+            self._handlers["escalate_to_human"] = self.escalate_to_human
 
     @property
     def names(self) -> List[str]:
@@ -399,6 +402,7 @@ class ToolRegistry:
                     "list_documents": (),
                     "list_cards": ("card_type", "industry", "service", "person", "year_from", "year_to",
                                    "include_people", "group_by", "cards", "limit"),
+                    "escalate_to_human": ("reason", "question", "route_path", "evidence", "topic", "request_id"),
                 }[name]
                 result = handler(**{k: v for k, v in arguments.items() if k in allowed})
             except TypeError as exc:
@@ -740,6 +744,18 @@ class ToolRegistry:
         return sorted({d["file_name"] for d in documents
                        if pattern.search(str(d.get("document_name", "")).lower())
                        and not str(d.get("category", "")).startswith("internal/")})
+
+    def escalate_to_human(self, reason: Any = None, question: Any = None, route_path: Any = None,
+                          evidence: Any = None, topic: Any = None, request_id: Any = None) -> ToolResult:
+        """Обращение к ответственному в очереди эскалаций (правила E1–E4). Вызывает агент по правилам, не модель."""
+        from agents.escalation import REASONS
+        if reason not in REASONS:
+            return _error("invalid_argument", f"reason должен быть одним из: {', '.join(REASONS)}.", argument="reason")
+        if not isinstance(question, str):
+            return _error("invalid_argument", "question должен быть строкой.", argument="question")
+        ticket = self._escalation.create(reason=reason, question=question, route_path=list(route_path or []),
+                                         evidence=list(evidence or []), request_id=request_id, topic=topic)
+        return {"status": "success", "ticket": ticket}
 
     def list_documents(self) -> ToolResult:
         retriever, failure = self._get_retriever()

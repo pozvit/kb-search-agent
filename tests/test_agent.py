@@ -4,6 +4,7 @@
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -44,12 +45,22 @@ def test_numbers_in_answer_are_confirmed_by_fragments(make_agent):
 
 # ========================================================= альтернативные сценарии
 
-def test_not_found_when_documents_have_no_answer(make_agent):
+def test_price_question_without_data_escalates_e2(make_agent, escalation_queue_in_tmp):
+    """Шаг 2.4.4, правило E2: стоимости в базе нет — вопрос передаётся ответственному, суммы не выдумываются."""
     r = make_agent().run("Сколько стоит годовая лицензия ORBIT для компании из 300 сотрудников?")
-    assert r.status == "not_found"
-    assert r.answer == NOT_FOUND_ANSWER
-    assert r.sources == []
-    assert "search_knowledge_base" in r.tool_names
+    assert r.status == "escalated" and r.escalation["reason"] == "no_data" and r.escalation["queued"]
+    assert r.tool_names[-1] == "escalate_to_human" and "search_knowledge_base" in r.tool_names
+    assert r.escalation["id"] in r.answer and not re.search(r"\d[\d\s]*\s?(руб|₽|\$)", r.answer)
+    ticket = json.loads(escalation_queue_in_tmp.read_text(encoding="utf-8").splitlines()[-1])
+    assert ticket["reason"] == "no_data" and ticket["route_path"] == ["documents", "escalation"]
+
+
+def test_plain_not_found_stays_not_found(make_agent, escalation_queue_in_tmp):
+    """E2 только для данных, которых в базе не бывает; обычное «нет ответа» — честный not_found без обращения."""
+    r = make_agent(llm=ScriptedLLM([reply(tool_calls=[search_call("ORBIT Антарктида")]),
+                                    reply(NOT_FOUND_ANSWER)])).run("Внедряли ли ORBIT в Антарктиде?")
+    assert r.status == "not_found" and r.answer == NOT_FOUND_ANSWER and r.escalation is None
+    assert not escalation_queue_in_tmp.exists()
 
 
 def test_empty_search_result_gives_not_found_without_second_llm_call(make_agent):
@@ -177,22 +188,22 @@ def test_non_secret_numbers_are_not_flagged():
 # ============================================================ отказ внешних компонентов
 
 def test_index_unavailable_is_handled(make_agent):
+    """Правило E3: без индекса — обращение администратору, код ошибки и подсказка по сборке индекса сохраняются."""
     from agent import KBAgent
-
     def broken_factory():
         raise RuntimeError("Коллекция 'rag_documents' не найдена в Qdrant")
-
     agent = KBAgent(make_agent().config, llm=ScriptedLLM([reply(tool_calls=[search_call("ORBIT")])]),
                     retriever_factory=broken_factory)
     r = agent.run("Что такое ORBIT?")
-    assert r.status == "error" and r.error_code == "index_unavailable"
-    assert "build_index" in r.answer and r.llm_calls == 1
+    assert r.status == "escalated" and r.escalation["reason"] == "component_failure"
+    assert r.error_code == "index_unavailable" and "build_index" in r.answer and r.llm_calls == 1
 
 
 def test_search_exception_is_handled(make_agent):
     idx = FakeIndex(fail_on_search=OSError("storage is locked by another process"))
     r = make_agent(llm=ScriptedLLM([reply(tool_calls=[search_call("ORBIT")])]), index=idx).run("Что такое ORBIT?")
-    assert r.status == "error" and r.error_code == "index_unavailable"
+    assert r.status == "escalated" and r.error_code == "index_unavailable"
+    assert r.escalation["reason"] == "component_failure"
 
 
 def test_llm_unavailable_degrades_to_raw_fragments(make_agent):
@@ -206,7 +217,8 @@ def test_llm_unavailable_degrades_to_raw_fragments(make_agent):
 def test_llm_and_index_both_unavailable(make_agent):
     idx = FakeIndex(fail_on_search=RuntimeError("index down"))
     r = make_agent(llm=ScriptedLLM([LLMError("timeout")]), index=idx).run("Что такое ORBIT?")
-    assert r.status == "error" and r.error_code == "llm_unavailable"
+    assert r.status == "escalated" and r.error_code == "llm_unavailable"
+    assert r.escalation["reason"] == "component_failure"
 
 
 # ================================================================ валидация ответа
@@ -243,7 +255,8 @@ def test_unconfirmed_number_twice_escalates(make_agent):
     ])
     r = make_agent(llm=llm).run("Какие эффекты ORBIT?")
     assert r.status == "escalated" and r.escalation["reason"] == "ungrounded_answer"
-    assert "45%" not in r.answer and "проверки человеком" in r.answer
+    assert "сократились на 45%" not in r.answer                     # неподтверждённое утверждение не выдаётся
+    assert "передан на проверку" in r.answer and r.escalation["id"] in r.answer
 
 
 def test_answer_without_citations_is_regenerated(make_agent):
@@ -318,7 +331,7 @@ def test_evaluator_detects_failures(make_agent):
     from agent_evaluator import evaluate_step
     r = make_agent().run("Сколько стоит лицензия ORBIT для 300 сотрудников?")
     checks = evaluate_step(r, {"status": "answered", "required_tools": ["list_documents"],
-                               "answer_contains_all": ["журнал"], "min_sources": 1})
+                               "answer_contains_all": ["журнал"], "min_sources": 99})
     assert [c["passed"] for c in checks] == [False, False, False, False]
 
 

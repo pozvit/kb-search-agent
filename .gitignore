@@ -25,5 +25,6 @@ data/raw_office_pdf/
 # MVP-агент: производные данные профиля public и сессионные trace
 data/public/
 data/agent/traces/
+data/escalations/
 .pytest_cache/
 *.log

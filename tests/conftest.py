@@ -116,6 +116,14 @@ def base_config():
     }
 
 
+@pytest.fixture(autouse=True)
+def escalation_queue_in_tmp(tmp_path, monkeypatch):
+    """Очередь обращений в тестах пишется во временную папку, а не в data/ проекта."""
+    path = tmp_path / "escalations.jsonl"
+    monkeypatch.setenv("ESCALATION_QUEUE_PATH", str(path))
+    return path
+
+
 @pytest.fixture
 def make_agent(base_config):
     from agent import KBAgent

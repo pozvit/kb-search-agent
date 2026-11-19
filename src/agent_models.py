@@ -107,6 +107,7 @@ class AgentState:
     grounding: Optional[Dict[str, Any]] = None     # итог проверки привязки (заполняется в _compose_final)
     cards_result: Optional[Dict[str, Any]] = None        # результат list_cards (перечисление по каталогу)
     document_filter: List[str] = field(default_factory=list)  # файлы документа продукта из вопроса (ставит код)
+    route_path: List[str] = field(default_factory=list)       # цепочка маршрутов: ["documents", "escalation"]
     followup_terms: List[str] = field(default_factory=list)   # термины темы из памяти для уточняющего вопроса
     followup_cards: List[Dict[str, str]] = field(default_factory=list)   # карточки прошлого ответа для «эти проекты»
     last_tool_error: Optional[ToolCall] = None
@@ -145,6 +146,7 @@ class AgentResponse:
     memory_size: int = 0
     duration_ms: int = 0
     escalation: Optional[Dict[str, Any]] = None    # {id, reason, owner, queued} при статусе escalated
+    route_path: List[str] = field(default_factory=list)
     grounding: Optional[Dict[str, Any]] = None     # итог проверки привязки ответа подагента «Документы»
 
     @property
@@ -164,6 +166,7 @@ class AgentResponse:
             "memory_size": self.memory_size,
             "duration_ms": self.duration_ms,
             "escalation": self.escalation,
+            "route_path": self.route_path,
             "grounding": self.grounding,
         }
         if include_trace:

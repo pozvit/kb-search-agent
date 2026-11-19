@@ -64,11 +64,13 @@ scenarios:
       - "validate: фраза «Недостаточно информации…» -> статус not_found, источники не показываются"
     steps:
       - request: "Сколько стоит годовая лицензия на SIPS и какова стоимость внедрения продукта для компании из 500 сотрудников?"
-        expected: "Статус not_found, фраза «Недостаточно информации в предоставленных документах», без сумм"
+        expected: "Статус escalated (E2): в базе таких данных нет, вопрос передан ответственному; без сумм"
+        # Ожидание обновлено на шаге 2.4.4 по правилу E2 (docs/requirements.md): вопрос о стоимости, которой
+        # в базе нет, эскалируется к ответственному. В baseline здесь было status: not_found.
         checks:
-          status: not_found
-          required_tools: [search_knowledge_base]
-          answer_contains_all: ["недостаточно информации"]
+          status: escalated
+          required_tools: [search_knowledge_base, escalate_to_human]
+          answer_contains_all: ["нет таких данных", "обращение"]
           forbid_patterns: ['\d[\d\s]*\s?(руб|₽|\$|долл|usd|eur|евро)']
 
   - id: alternative_list_documents
@@ -176,9 +178,11 @@ scenarios:
       retriever.chunks_jsonl: "data/public/chunks/__missing__.jsonl"
     steps:
       - request: "Какие три цифровых решения входят в цифровое ядро AIMS?"
-        expected: "Статус error, код index_unavailable, в ответе нет фактов из документа"
+        expected: "Статус escalated (E3), код index_unavailable, в ответе нет фактов из документа"
+        # Ожидание обновлено на шаге 2.4.4 по правилу E3 (docs/requirements.md): без индекса вопрос эскалируется
+        # администратору. В baseline здесь было status: error.
         checks:
-          status: error
+          status: escalated
           error_code: index_unavailable
           max_llm_calls: 1
           answer_contains_all: ["build_index"]

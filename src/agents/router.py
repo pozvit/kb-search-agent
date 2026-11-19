@@ -4,6 +4,7 @@
 Правила проверяются по порядку, первое сработавшее определяет маршрут, правило и признаки
 пишутся в trace:
   1. приветствие, благодарность                                  -> smalltalk
+     просьба связаться с человеком (E4)                           -> escalation
   2. вопрос к реестрам (перечисление, рейтинг, люди, сотрудник)  -> registry
   3. название продукта из базы или вопрос о содержании документов -> documents
   4. уточнение прошлого ответа («а там…», «а сроки?»)            -> documents
@@ -22,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from agents.escalation import USER_REQUEST
 from agents.registry_agent import Scope, detect_scope, match_registry
 
 SMALLTALK = re.compile(r"(?i)^\s*(привет|здравствуй|здравствуйте|добрый (день|вечер|утро)|спасибо|благодарю|пока)"
@@ -68,6 +70,11 @@ class Router:
                classify: Optional[Callable[[str], Optional[str]]] = None) -> RouteDecision:
         if SMALLTALK.match(query):
             return RouteDecision("smalltalk", "greeting")
+        if USER_REQUEST.search(query):
+            # E4: просьба связаться с человеком; ответственный — по теме вопроса
+            topic = "registry" if re.search(r"(?i)реестр|проект|пропозал|сотрудник", query) else \
+                "documents" if re.search(r"(?i)(?<![а-яё])кп(?![а-яё])|предложени|продукт|документ", query) else None
+            return RouteDecision("escalation", "user_request", details={"topic": topic})
 
         catalog = self._catalog()
         scope = detect_scope(query, catalog) if catalog is not None else Scope()

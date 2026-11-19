@@ -77,6 +77,7 @@ grounding:
   max_regenerations: 1            # не прошёл проверку -> одна перегенерация, затем эскалация E1
 
 escalation:
+  queue_path: "data/escalations/escalations.jsonl"   # очередь обращений (в .gitignore); переменная ESCALATION_QUEUE_PATH
   owners:                         # роли, а не люди: имена и контакты в репозиторий не попадают
     ungrounded_answer: "владелец базы коммерческих предложений"
     no_data: "владелец базы коммерческих предложений"

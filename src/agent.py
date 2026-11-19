@@ -36,6 +36,7 @@ from agent_models import (STATUS_ANSWERED, STATUS_DEGRADED, STATUS_ERROR, STATUS
                           STATUS_REJECTED, STATUS_SMALLTALK, AgentResponse, AgentState, ToolCall, Trace)
 from agent_tools import (QdrantRetrieverAdapter, ToolRegistry, format_documents, format_error, format_fragments,
                          hits_to_fragments)
+from agents.escalation import NO_DATA_INTENT, EscalationQueue
 from agents.grounding import check_grounding
 from agents.registry_agent import card_sources, catalog_answer
 from agents.router import Router, parse_label
@@ -86,11 +87,14 @@ class KBAgent:
         self.min_overlap = float(grounding_cfg.get("min_overlap", 0.5))
         self.min_terms = int(grounding_cfg.get("min_terms", 3))
         self.max_regenerations = int(grounding_cfg.get("max_regenerations", 1))
-        self.owners = (config.get("escalation", {}) or {}).get("owners", {}) or {}
 
         self.llm = llm if llm is not None else create_backend(config.get("llm", {}))
         factory = retriever_factory or self._default_retriever_factory(config)
-        self.tools = ToolRegistry(factory, config.get("tools", {}), catalog_path=config.get("catalog_path"))
+        escalation_cfg = config.get("escalation", {}) or {}
+        self.escalation = EscalationQueue(escalation_cfg.get("queue_path", "data/escalations/escalations.jsonl"),
+                                          escalation_cfg.get("owners"), profile=str(config.get("profile", "")))
+        self.tools = ToolRegistry(factory, config.get("tools", {}), catalog_path=config.get("catalog_path"),
+                                  escalation_queue=self.escalation)
         self.router = Router(self.tools.catalog, config.get("router", {}))
 
 
@@ -157,6 +161,10 @@ class KBAgent:
         decision = self.router.decide(query, state.followup_cards, is_followup,
                                       classify=lambda q: self._classify(q, state, trace))
         trace.add("decision", point="route_decided", **decision.trace_data())
+        state.route_path.append("smalltalk" if decision.route == "out_of_scope" else decision.route)
+        if decision.route == "escalation":
+            state.route = "escalation"
+            return self._escalate(state, trace, started, "user_request", topic=decision.details.get("topic"))
         if decision.route == "smalltalk":
             state.route = "smalltalk"
             return self._finish(state, trace, started, STATUS_SMALLTALK, P.SMALLTALK_ANSWER)
@@ -381,17 +389,62 @@ class KBAgent:
         return call
 
     def _ungrounded_response(self, state: AgentState, trace: Trace, started: float) -> AgentResponse:
-        """E1: подтвердить ответ источниками не удалось — уверенный ответ не выдаётся, вопрос требует человека."""
-        owner = self.owners.get("ungrounded_answer", "владелец базы коммерческих предложений")
+        """
+        E1: подтвердить ответ источниками не удалось — уверенный ответ не выдаётся.
+        Если вопрос о данных, которых в базе не бывает (цена, контакты), первопричина — их отсутствие: E2.
+        """
+        reason = "no_data" if NO_DATA_INTENT.search(state.query or "") else "ungrounded_answer"
         previews = "\n\n".join(
             f"[Фрагмент {f.number}] {f.document_name} ({f.file_name})\n{f.text[:300]}{'…' if len(f.text) > 300 else ''}"
-            for f in state.fragments[:4]) or "фрагментов нет"
-        trace.add("decision", point="escalation", reason="ungrounded_answer", owner=owner,
-                  rule="E1: ответ не прошёл проверку привязки после перегенерации")
-        escalation = {"id": None, "reason": "ungrounded_answer", "owner": owner, "queued": False}
-        return self._finish(state, trace, started, STATUS_ESCALATED, P.UNGROUNDED_TEMPLATE.format(
-            owner=owner, fragments=previews), sources=[f.source_dict() for f in state.fragments],
-            remember=False, escalation=escalation)
+            for f in state.fragments[:4])
+        note = f"\n\nНайденные фрагменты:\n\n{previews}" if previews and reason == "ungrounded_answer" else ""
+        return self._escalate(state, trace, started, reason, note=note)
+
+    def _not_found(self, state: AgentState, trace: Trace, started: float) -> AgentResponse:
+        """
+        Ответа в документах нет. Обычно это честное not_found. Но если вопрос о данных, которых в базе знаний
+        не бывает (стоимость, контакты, планы, внутренние оценки), ответить может только человек — E2.
+        """
+        if NO_DATA_INTENT.search(state.query or ""):
+            return self._escalate(state, trace, started, "no_data")
+        return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
+
+    def _escalate(self, state: AgentState, trace: Trace, started: float, reason: str, topic: Optional[str] = None,
+                  note: str = "", error_code: Optional[str] = None) -> AgentResponse:
+        """Инструмент escalate_to_human: обращение в очередь и ответ пользователю с номером и ответственным."""
+        if not state.route_path or state.route_path[-1] != "escalation":
+            state.route_path.append("escalation")
+        evidence = [{"type": "card", "id": f"{s['card'].get('card_type')}:{s['card'].get('card_id')}"} if s.get("card")
+                    else {"type": "document", "id": f"{s.get('file_name')}#{s.get('chunk_index')}"}
+                    for s in [f.source_dict() for f in state.fragments]]
+        args = {"reason": reason, "question": state.query or "", "route_path": list(state.route_path),
+                "evidence": evidence, "topic": topic}
+        call = ToolCall(name="escalate_to_human", iteration=state.iteration, source="rules",
+                        arguments={"reason": reason, "topic": topic, "evidence": len(evidence)})
+        trace.add("tool_call", name=call.name, arguments=call.arguments, source="rules", iteration=state.iteration)
+        result, latency = self.tools.execute("escalate_to_human", args)
+        call.latency_ms = latency
+        state.tool_calls.append(call)
+        ticket = result.get("ticket") if result.get("status") == "success" else None
+        if ticket is None:
+            call.status, call.error_code, call.error = "error", result.get("error_code"), result.get("error")
+            ticket = {"id": None, "owner": self.escalation.owner_for(reason, topic), "queued": False}
+        else:
+            call.status = "success"
+            call.result_summary = {"id": ticket["id"], "queued": ticket["queued"]}
+        trace.add("tool_result", name=call.name, latency_ms=latency, status=call.status, ticket=ticket.get("id"),
+                  queued=ticket.get("queued"))
+        trace.add("decision", point="escalation", reason=reason, owner=ticket["owner"], ticket=ticket.get("id"),
+                  rule={"ungrounded_answer": "E1", "no_data": "E2", "component_failure": "E3",
+                        "user_request": "E4"}[reason])
+        text = P.ESCALATION_TEMPLATES[reason].format(owner=ticket["owner"], id=ticket.get("id") or "—", note=note)
+        if not ticket.get("queued"):
+            text += P.ESCALATION_NOT_QUEUED
+        escalation = {"id": ticket.get("id"), "reason": reason, "owner": ticket["owner"], "queued": bool(ticket.get("queued"))}
+        return self._finish(state, trace, started, STATUS_ESCALATED, text,
+                            sources=[f.source_dict() for f in state.fragments], remember=False,
+                            escalation=escalation, error_code=error_code)
+
 
     def _reject_tool(self, name: str, args: Dict[str, Any], state: AgentState, trace: Trace,
                      messages: List[Dict[str, Any]]) -> ToolCall:
@@ -423,10 +476,15 @@ class KBAgent:
         if searches and not state.fragments and not state.documents_listed:
             trace.add("decision", point="empty_results", action="not_found без вызова LLM")
             state.route = state.route or "tools"
-            return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
+            return self._not_found(state, trace, started)
         return None
 
     def _tool_error_response(self, state, trace, started, err: ToolCall) -> AgentResponse:
+        if err.error_code == "index_unavailable":
+            # E3: без индекса или каталога агент ответить не может — сбой передаётся администратору
+            hint = P.TOOL_ERROR_HINTS.get("index_unavailable", "")
+            return self._escalate(state, trace, started, "component_failure", note="\n" + hint if hint else "",
+                                  error_code=err.error_code)
         text = P.TOOL_ERROR_TEMPLATE.format(error=err.error)
         hint = P.TOOL_ERROR_HINTS.get(err.error_code or "")
         if hint:
@@ -440,10 +498,8 @@ class KBAgent:
             self._execute_and_append("search_knowledge_base", {"query": query}, "degraded",
                                      state, trace, messages)
             if state.tool_calls[-1].status != "success":
-                text = P.LLM_AND_TOOL_UNAVAILABLE_TEMPLATE.format(
-                    llm_error=state.llm_error, tool_error=state.tool_calls[-1].error)
-                return self._finish(state, trace, started, STATUS_ERROR, text,
-                                    error_code="llm_unavailable", remember=False)
+                # E3: недоступны и модель, и поиск
+                return self._escalate(state, trace, started, "component_failure", error_code="llm_unavailable")
         if not state.fragments:
             text = (f"Языковая модель недоступна ({state.llm_error}), а поиск не нашёл подходящих "
                     f"фрагментов. {P.NOT_FOUND_ANSWER}")
@@ -477,7 +533,7 @@ class KBAgent:
             if state.last_tool_error is not None:
                 trace.add("decision", point="validation", action="успешных вызовов tools нет — текст LLM отброшен")
                 return self._tool_error_response(state, trace, started, state.last_tool_error)
-            return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
+            return self._not_found(state, trace, started)
 
         if not has_search and state.documents_listed:
             docs = state.documents_result
@@ -493,12 +549,12 @@ class KBAgent:
                 return self._ungrounded_response(state, trace, started)
         if _NOT_FOUND_NORMALIZED in text.lower().replace("«", "").replace("»", ""):
             trace.add("validation", kind="not_found_phrase", ok=True)
-            return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
+            return self._not_found(state, trace, started)
 
         if not text:
             state.warnings.append("LLM вернула пустой ответ")
             trace.add("validation", kind="empty_answer", ok=False)
-            return self._finish(state, trace, started, STATUS_NOT_FOUND, P.NOT_FOUND_ANSWER)
+            return self._not_found(state, trace, started)
 
         valid_numbers = {f.number for f in state.fragments}
         cited = set()
@@ -678,4 +734,5 @@ class KBAgent:
             duration_ms=int((time.monotonic() - started) * 1000),
             escalation=escalation,
             grounding=state.grounding,
+            route_path=list(state.route_path),
         )
