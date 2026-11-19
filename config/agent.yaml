@@ -84,5 +84,11 @@ escalation:
     component_failure: "администратор сервиса"
     user_request: "владелец реестра проектов"
 
+service:                          # HTTP API (python src/serve.py)
+  host: "127.0.0.1"               # в Docker — 0.0.0.0 (параметр --host)
+  port: 8000
+  session_ttl_minutes: 30         # память сессии живёт 30 минут с последнего запроса
+  max_sessions: 200               # больше — вытесняется самая давняя
+
 validation:
   check_numbers: true             # числа в ответе сверяются с текстом фрагментов
