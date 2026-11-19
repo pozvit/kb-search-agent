@@ -288,6 +288,9 @@ class Orchestrator(DocumentsAgent):
     def _finish(self, state: AgentState, trace: Trace, started: float, status: str, answer: str,
                 error_code: Optional[str] = None, sources: Optional[List[Dict[str, Any]]] = None,
                 remember: bool = True, escalation: Optional[Dict[str, Any]] = None) -> AgentResponse:
+        if status == STATUS_ANSWERED:
+            # документ продукта последнего ответа — для уточнений; ответ без фильтра сбрасывает тему
+            self.memory.remember_documents(state.document_filter)
         if status == STATUS_ANSWERED and sources:
             cited_cards = [{"card_type": s["card"]["card_type"], "card_id": s["card"]["card_id"],
                             "card_title": s["card"].get("card_title", "")}

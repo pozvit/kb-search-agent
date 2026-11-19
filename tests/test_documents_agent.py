@@ -102,3 +102,54 @@ def test_documents_prompt_keeps_answer_on_the_asked_case():
     """Шаг 2.4.6: в CS-03 модель добавляла эффекты других проектов и пропускала пункт нужного случая."""
     assert "только на заданный вопрос" in P.DOCUMENTS_PROMPT
     assert "эффекты других проектов и общие диапазоны не добавляй" in P.DOCUMENTS_PROMPT
+
+
+# ---------------------------------------------------------------- уточнения: фильтр документа из прошлого ответа
+
+def followup_agent(base_config, replies):
+    from agent import KBAgent
+    cfg = {**base_config, "router": {"classifier": False, "products": ["ERGO", "AIMS"]}}
+    index = FakeIndex(PRODUCTS)
+    return KBAgent(cfg, llm=ScriptedLLM(list(replies)), retriever_factory=lambda: index), index
+
+
+def search(q):
+    return reply(tool_calls=[{"name": "search_knowledge_base", "arguments": {"query": q}}])
+
+
+def test_followup_keeps_document_of_previous_answer(base_config):
+    """Воспроизводит провал recovery_followup на public_v2: «а там…» искало по всей базе."""
+    agent, index = followup_agent(base_config, [
+        search("что такое ERGO"), reply("ERGO — бизнес-симулятор [Фрагмент 1]."),
+        reply("Недостаточно информации в предоставленных документах."),     # модель не вызвала поиск
+        reply("В игре 5 сегментов рынка микроэлектроники [Фрагмент 1]."),
+    ])
+    agent.run("Что такое ERGO?")
+    r = agent.run("А сколько сегментов рынка там моделируется?")
+    assert index.search_calls[-1]["filters"] == {"files": ["01_ergo.pdf"]}
+    carried = [d for d in r.trace.decisions() if d.get("point") == "document_filter"]
+    assert carried and carried[0]["carried_over"] is True and r.status == "answered"
+
+
+def test_followup_with_new_product_switches_document(base_config):
+    agent, index = followup_agent(base_config, [
+        search("что такое ERGO"), reply("ERGO — бизнес-симулятор [Фрагмент 1]."),
+        search("цифровое ядро AIMS"), reply("Паспорт, пульс, биржа [Фрагмент 1]."),
+    ])
+    agent.run("Что такое ERGO?")
+    agent.run("А что входит в цифровое ядро AIMS?")
+    assert index.search_calls[-1]["filters"] == {"files": ["03_aims.pdf"]}
+
+
+def test_answer_without_product_resets_document_topic(base_config):
+    agent, index = followup_agent(base_config, [
+        search("что такое ERGO"), reply("ERGO — бизнес-симулятор [Фрагмент 1]."),
+        search("цифровое ядро паспорт"), reply("Паспорт, пульс, биржа [Фрагмент 1]."),
+        search("а сегменты"), reply("Сегменты [Фрагмент 1]."),       # содержание здесь не важно — проверяется фильтр
+    ])
+    agent.run("Что такое ERGO?")
+    agent.run("Как устроено цифровое ядро с паспортом активов?")      # ответ без фильтра — тема сменилась
+    agent.run("А сегменты там какие?")
+    assert not (index.search_calls[-1]["filters"] or {}).get("files")
+    agent.memory.clear()
+    assert agent.memory.last_documents() == []

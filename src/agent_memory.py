@@ -45,9 +45,17 @@ class ShortTermMemory:
     def last_cards(self) -> List[Dict[str, str]]:
         return [dict(c) for c in getattr(self, "_last_cards", [])]
 
+    def remember_documents(self, files: List[str]) -> None:
+        """Документ продукта, по которому был последний ответ: для уточнений «а там…» без названия продукта."""
+        self._last_documents = list(files)
+
+    def last_documents(self) -> List[str]:
+        return list(getattr(self, "_last_documents", []))
+
     def clear(self) -> None:
         self._messages.clear()
         self._last_cards = []
+        self._last_documents = []
 
     def __len__(self) -> int:
         return len(self._messages)

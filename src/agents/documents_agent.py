@@ -53,6 +53,12 @@ class DocumentsAgent:
                 state.document_filter = files
                 trace.add("decision", point="document_filter", product=product, files=files,
                           rule="фильтр по документу продукта из вопроса ставит код, а не модель")
+        elif decision.rule == "followup" and self.memory.last_documents():
+            # уточнение «а там…» без названия продукта: остаёмся в документе прошлого ответа,
+            # иначе поиск размывается по всей базе (регрессия recovery_followup на public_v2)
+            state.document_filter = self.memory.last_documents()
+            trace.add("decision", point="document_filter", files=state.document_filter, carried_over=True,
+                      rule="уточняющий вопрос без продукта: фильтр по документу перенесён из прошлого ответа")
         tool_schemas = P.DOCUMENT_TOOL_SCHEMAS
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": P.DOCUMENTS_PROMPT}]
