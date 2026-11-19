@@ -96,3 +96,9 @@ def test_documents_prompt_and_schema_are_much_smaller():
     size = len(P.DOCUMENTS_PROMPT) + len(json.dumps(P.DOCUMENT_TOOL_SCHEMAS, ensure_ascii=False))
     assert size < (3000 + 819) / 2, size
     assert "только на русском" in P.DOCUMENTS_PROMPT
+
+
+def test_documents_prompt_keeps_answer_on_the_asked_case():
+    """Шаг 2.4.6: в CS-03 модель добавляла эффекты других проектов и пропускала пункт нужного случая."""
+    assert "только на заданный вопрос" in P.DOCUMENTS_PROMPT
+    assert "эффекты других проектов и общие диапазоны не добавляй" in P.DOCUMENTS_PROMPT

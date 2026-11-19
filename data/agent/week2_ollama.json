@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-19T06:18:28+00:00",
+  "created_at": "2026-11-19T06:47:47+00:00",
   "agent_name": "KB Search Agent",
   "environment": {
     "profile": "public",
@@ -61,7 +61,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 54577,
+      "duration_ms": 52952,
       "steps": [
         {
           "step": 1,
@@ -112,7 +112,7 @@
                   "03_aims_asset_management.pdf"
                 ]
               },
-              "latency_ms": 125,
+              "latency_ms": 94,
               "source": "llm"
             }
           ],
@@ -178,7 +178,7 @@
               ]
             }
           ],
-          "duration_ms": 54577,
+          "duration_ms": 52922,
           "trace": [
             {
               "t_ms": 0,
@@ -219,7 +219,7 @@
               }
             },
             {
-              "t_ms": 15344,
+              "t_ms": 13422,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -231,7 +231,7 @@
               }
             },
             {
-              "t_ms": 22780,
+              "t_ms": 20625,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -239,12 +239,12 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 7436,
+                "latency_ms": 7202,
                 "usage": {
-                  "prompt_tokens": 603,
+                  "prompt_tokens": 649,
                   "completion_tokens": 44,
-                  "total_duration_ms": 5324,
-                  "load_duration_ms": 7
+                  "total_duration_ms": 5092,
+                  "load_duration_ms": 12
                 },
                 "tool_calls": [
                   {
@@ -260,7 +260,7 @@
               }
             },
             {
-              "t_ms": 22780,
+              "t_ms": 20625,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -276,11 +276,11 @@
               }
             },
             {
-              "t_ms": 22905,
+              "t_ms": 20719,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
-                "latency_ms": 125,
+                "latency_ms": 94,
                 "count": 3,
                 "fragments_in_context": 3,
                 "top_k": 3,
@@ -297,7 +297,7 @@
               }
             },
             {
-              "t_ms": 54577,
+              "t_ms": 52922,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -305,12 +305,12 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 31672,
+                "latency_ms": 32202,
                 "usage": {
-                  "prompt_tokens": 1538,
+                  "prompt_tokens": 1584,
                   "completion_tokens": 137,
-                  "total_duration_ms": 29595,
-                  "load_duration_ms": 4
+                  "total_duration_ms": 30152,
+                  "load_duration_ms": 7
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
@@ -318,7 +318,7 @@
               }
             },
             {
-              "t_ms": 54577,
+              "t_ms": 52922,
               "type": "validation",
               "data": {
                 "kind": "citations",
@@ -332,7 +332,7 @@
               }
             },
             {
-              "t_ms": 54577,
+              "t_ms": 52922,
               "type": "validation",
               "data": {
                 "kind": "grounding",
@@ -343,7 +343,7 @@
               }
             },
             {
-              "t_ms": 54577,
+              "t_ms": 52922,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -352,7 +352,7 @@
               }
             },
             {
-              "t_ms": 54577,
+              "t_ms": 52922,
               "type": "final",
               "data": {
                 "status": "answered",
@@ -394,7 +394,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 52969,
+      "duration_ms": 47859,
       "steps": [
         {
           "step": 1,
@@ -403,7 +403,7 @@
           "passed": true,
           "status": "answered",
           "error_code": null,
-          "answer": "В бизнес-симуляторе ERGO моделируются пять сегментов рынка микроэлектроники:\n\n1. Военная электроника\n2. Электронные компоненты\n3. Промышленная электроника\n4. Low-end (потребительская) электроника\n5. Hi-end (премиум) электроника\n\nИсточники: [Фрагмент 2, Фрагмент 2]",
+          "answer": "В бизнес-симуляторе ERGO моделируются пять сегментов рынка микроэлектроники:\n\n1. Военная электроника\n2. Электронные компоненты\n3. Промышленная электроника\n4. Low-end (потребительская) электроника\n5. Hi-end (премиум) электроника\n\nИсточники: [Фрагмент 2, Фрагмент 3]",
           "sources": [
             {
               "fragment": 2,
@@ -412,6 +412,14 @@
               "category": "products/leadership_development",
               "chunk_index": 2,
               "score": 0.8721
+            },
+            {
+              "fragment": 3,
+              "document_name": "ERGO — бизнес-симулятор принятия стратегических решений",
+              "file_name": "01_ergo_business_simulator.pdf",
+              "category": "products/leadership_development",
+              "chunk_index": 1,
+              "score": 0.8615
             }
           ],
           "warnings": [],
@@ -500,11 +508,12 @@
               "passed": true,
               "expected": "01_ergo_business_simulator",
               "actual": [
+                "01_ergo_business_simulator.pdf",
                 "01_ergo_business_simulator.pdf"
               ]
             }
           ],
-          "duration_ms": 52952,
+          "duration_ms": 47859,
           "trace": [
             {
               "t_ms": 0,
@@ -540,7 +549,7 @@
               }
             },
             {
-              "t_ms": 4233,
+              "t_ms": 3062,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -552,7 +561,7 @@
               }
             },
             {
-              "t_ms": 12905,
+              "t_ms": 11406,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -560,12 +569,12 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 8672,
+                "latency_ms": 8344,
                 "usage": {
-                  "prompt_tokens": 619,
+                  "prompt_tokens": 665,
                   "completion_tokens": 49,
-                  "total_duration_ms": 6643,
-                  "load_duration_ms": 22
+                  "total_duration_ms": 6307,
+                  "load_duration_ms": 10
                 },
                 "tool_calls": [
                   {
@@ -581,7 +590,7 @@
               }
             },
             {
-              "t_ms": 12905,
+              "t_ms": 11406,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -597,7 +606,7 @@
               }
             },
             {
-              "t_ms": 12936,
+              "t_ms": 11437,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
@@ -619,7 +628,7 @@
               }
             },
             {
-              "t_ms": 52952,
+              "t_ms": 47842,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -627,11 +636,11 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 40016,
+                "latency_ms": 36405,
                 "usage": {
-                  "prompt_tokens": 2022,
+                  "prompt_tokens": 2068,
                   "completion_tokens": 103,
-                  "total_duration_ms": 37972,
+                  "total_duration_ms": 34357,
                   "load_duration_ms": 6
                 },
                 "tool_calls": [],
@@ -640,21 +649,23 @@
               }
             },
             {
-              "t_ms": 52952,
+              "t_ms": 47842,
               "type": "validation",
               "data": {
                 "kind": "citations",
                 "cited": [
-                  2
+                  2,
+                  3
                 ],
                 "valid": [
-                  2
+                  2,
+                  3
                 ],
                 "invalid": []
               }
             },
             {
-              "t_ms": 52952,
+              "t_ms": 47859,
               "type": "validation",
               "data": {
                 "kind": "grounding",
@@ -665,7 +676,7 @@
               }
             },
             {
-              "t_ms": 52952,
+              "t_ms": 47859,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -674,7 +685,7 @@
               }
             },
             {
-              "t_ms": 52952,
+              "t_ms": 47859,
               "type": "final",
               "data": {
                 "status": "answered",
@@ -717,7 +728,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 36405,
+      "duration_ms": 36437,
       "steps": [
         {
           "step": 1,
@@ -726,7 +737,7 @@
           "passed": true,
           "status": "escalated",
           "error_code": null,
-          "answer": "В базе знаний нет таких данных. Вопрос передан: владелец базы коммерческих предложений, обращение ESC-20261119-0005.",
+          "answer": "В базе знаний нет таких данных. Вопрос передан: владелец базы коммерческих предложений, обращение ESC-20261119-0003.",
           "sources": [
             {
               "fragment": 1,
@@ -767,8 +778,8 @@
             {
               "name": "search_knowledge_base",
               "arguments": {
-                "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников",
                 "top_k": 4,
+                "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников",
                 "files": [
                   "02_sips_investment_planning.pdf"
                 ]
@@ -793,7 +804,7 @@
                   "02_sips_investment_planning.pdf"
                 ]
               },
-              "latency_ms": 30,
+              "latency_ms": 15,
               "source": "llm"
             },
             {
@@ -808,7 +819,7 @@
               "error_code": null,
               "error": null,
               "result_summary": {
-                "id": "ESC-20261119-0005",
+                "id": "ESC-20261119-0003",
                 "queued": true
               },
               "latency_ms": 0,
@@ -862,7 +873,7 @@
               }
             }
           ],
-          "duration_ms": 36375,
+          "duration_ms": 36437,
           "trace": [
             {
               "t_ms": 0,
@@ -898,7 +909,7 @@
               }
             },
             {
-              "t_ms": 3797,
+              "t_ms": 2577,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -910,7 +921,7 @@
               }
             },
             {
-              "t_ms": 12406,
+              "t_ms": 10875,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -918,19 +929,19 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 8609,
+                "latency_ms": 8297,
                 "usage": {
-                  "prompt_tokens": 617,
+                  "prompt_tokens": 663,
                   "completion_tokens": 54,
-                  "total_duration_ms": 6566,
-                  "load_duration_ms": 9
+                  "total_duration_ms": 6242,
+                  "load_duration_ms": 10
                 },
                 "tool_calls": [
                   {
                     "name": "search_knowledge_base",
                     "arguments": {
-                      "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников",
-                      "top_k": 4
+                      "top_k": 4,
+                      "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников"
                     }
                   }
                 ],
@@ -939,13 +950,13 @@
               }
             },
             {
-              "t_ms": 12406,
+              "t_ms": 10875,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
                 "arguments": {
-                  "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников",
                   "top_k": 4,
+                  "query": "стоимость годовой лицензии SIPS и стоимость внедрения для компании из 500 сотрудников",
                   "files": [
                     "02_sips_investment_planning.pdf"
                   ]
@@ -955,11 +966,11 @@
               }
             },
             {
-              "t_ms": 12437,
+              "t_ms": 10890,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
-                "latency_ms": 30,
+                "latency_ms": 15,
                 "count": 4,
                 "fragments_in_context": 4,
                 "top_k": 4,
@@ -977,7 +988,7 @@
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -985,20 +996,20 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 23937,
+                "latency_ms": 25547,
                 "usage": {
-                  "prompt_tokens": 1831,
-                  "completion_tokens": 13,
-                  "total_duration_ms": 21894,
-                  "load_duration_ms": 5
+                  "prompt_tokens": 1877,
+                  "completion_tokens": 43,
+                  "total_duration_ms": 23475,
+                  "load_duration_ms": 6
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
-                "content_preview": "Недостаточно информации в предоставленных документах."
+                "content_preview": "Недостаточно информации в предоставленных документах.\n\nИсточники: [Фрагмент 1, Фрагмент 2, Фрагмент 3, Фрагмент 4]"
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "validation",
               "data": {
                 "kind": "not_found_phrase",
@@ -1006,7 +1017,7 @@
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "tool_call",
               "data": {
                 "name": "escalate_to_human",
@@ -1020,29 +1031,29 @@
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "tool_result",
               "data": {
                 "name": "escalate_to_human",
                 "latency_ms": 0,
                 "status": "success",
-                "ticket": "ESC-20261119-0005",
+                "ticket": "ESC-20261119-0003",
                 "queued": true
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "decision",
               "data": {
                 "point": "escalation",
                 "reason": "no_data",
                 "owner": "владелец базы коммерческих предложений",
-                "ticket": "ESC-20261119-0005",
+                "ticket": "ESC-20261119-0003",
                 "rule": "E2"
               }
             },
             {
-              "t_ms": 36375,
+              "t_ms": 36437,
               "type": "final",
               "data": {
                 "status": "escalated",
@@ -1082,7 +1093,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 97687,
+      "duration_ms": 111687,
       "steps": [
         {
           "step": 1,
@@ -1107,7 +1118,7 @@
                 "count": 23,
                 "truncated": false
               },
-              "latency_ms": 3202,
+              "latency_ms": 3000,
               "source": "llm"
             }
           ],
@@ -1144,7 +1155,7 @@
               }
             }
           ],
-          "duration_ms": 97687,
+          "duration_ms": 111672,
           "trace": [
             {
               "t_ms": 0,
@@ -1179,7 +1190,7 @@
               }
             },
             {
-              "t_ms": 4047,
+              "t_ms": 4172,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -1187,12 +1198,12 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 4047,
+                "latency_ms": 4172,
                 "usage": {
-                  "prompt_tokens": 596,
+                  "prompt_tokens": 642,
                   "completion_tokens": 16,
-                  "total_duration_ms": 2011,
-                  "load_duration_ms": 6
+                  "total_duration_ms": 2116,
+                  "load_duration_ms": 7
                 },
                 "tool_calls": [
                   {
@@ -1205,7 +1216,7 @@
               }
             },
             {
-              "t_ms": 4047,
+              "t_ms": 4172,
               "type": "tool_call",
               "data": {
                 "name": "list_documents",
@@ -1215,17 +1226,17 @@
               }
             },
             {
-              "t_ms": 7250,
+              "t_ms": 7172,
               "type": "tool_result",
               "data": {
                 "name": "list_documents",
-                "latency_ms": 3202,
+                "latency_ms": 3000,
                 "count": 23,
                 "truncated": false
               }
             },
             {
-              "t_ms": 97687,
+              "t_ms": 111672,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -1233,12 +1244,12 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 90437,
+                "latency_ms": 104500,
                 "usage": {
-                  "prompt_tokens": 1528,
+                  "prompt_tokens": 1574,
                   "completion_tokens": 607,
-                  "total_duration_ms": 88404,
-                  "load_duration_ms": 9
+                  "total_duration_ms": 102442,
+                  "load_duration_ms": 8
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
@@ -1246,7 +1257,7 @@
               }
             },
             {
-              "t_ms": 97687,
+              "t_ms": 111672,
               "type": "validation",
               "data": {
                 "kind": "documents",
@@ -1254,7 +1265,7 @@
               }
             },
             {
-              "t_ms": 97687,
+              "t_ms": 111672,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -1263,7 +1274,7 @@
               }
             },
             {
-              "t_ms": 97687,
+              "t_ms": 111672,
               "type": "final",
               "data": {
                 "status": "answered",
@@ -1423,7 +1434,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 12157,
+      "duration_ms": 21577,
       "steps": [
         {
           "step": 1,
@@ -1505,7 +1516,7 @@
               }
             }
           ],
-          "duration_ms": 12140,
+          "duration_ms": 21577,
           "trace": [
             {
               "t_ms": 0,
@@ -1557,7 +1568,7 @@
               }
             },
             {
-              "t_ms": 2968,
+              "t_ms": 3109,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -1569,7 +1580,7 @@
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -1577,30 +1588,30 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 9172,
+                "latency_ms": 18468,
                 "usage": {
-                  "prompt_tokens": 602,
-                  "completion_tokens": 59,
-                  "total_duration_ms": 7113,
-                  "load_duration_ms": 10
+                  "prompt_tokens": 648,
+                  "completion_tokens": 138,
+                  "total_duration_ms": 16447,
+                  "load_duration_ms": 6
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
-                "content_preview": "Цифровое ядро AIMS включает в себя модуль управления контрактами, модуль управления проектами и модуль управления цепочками поставок. [Фрагмент 1]\n\nИсточники: [Фрагмент 1]"
+                "content_preview": "Цифровое ядро AIMS включает в себя следующие компоненты:\n\n1. Модуль анализа данных: Обеспечивает обработку и анализ больших объемов данных.\n2. Интеллектуальный модуль: Предоставляет интеллектуальные р"
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "decision",
               "data": {
                 "point": "route",
                 "route": "forced_search",
                 "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
-                "llm_text_discarded": "Цифровое ядро AIMS включает в себя модуль управления контрактами, модуль управления проектами и модуль управления цепочками поставок. [Фрагмент 1]\n\nИсточники: [Фрагмент 1]"
+                "llm_text_discarded": "Цифровое ядро AIMS включает в себя следующие компоненты:\n\n1. Модуль анализа данных: Обеспечивает обработку и анализ больших объемов данных.\n2. Интеллектуальный модуль: Предоставляет интеллектуальные р"
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "decision",
               "data": {
                 "point": "apply_locked_param",
@@ -1610,7 +1621,7 @@
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -1626,7 +1637,7 @@
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "tool_error",
               "data": {
                 "name": "search_knowledge_base",
@@ -1636,7 +1647,7 @@
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "decision",
               "data": {
                 "point": "tool_failed",
@@ -1645,7 +1656,7 @@
               }
             },
             {
-              "t_ms": 12140,
+              "t_ms": 21577,
               "type": "final",
               "data": {
                 "status": "error",
@@ -1688,7 +1699,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 9250,
+      "duration_ms": 8375,
       "steps": [
         {
           "step": 1,
@@ -1750,7 +1761,7 @@
               }
             }
           ],
-          "duration_ms": 9250,
+          "duration_ms": 8359,
           "trace": [
             {
               "t_ms": 0,
@@ -1783,7 +1794,7 @@
               }
             },
             {
-              "t_ms": 15,
+              "t_ms": 0,
               "type": "decision",
               "data": {
                 "point": "route_decided",
@@ -1797,7 +1808,7 @@
               }
             },
             {
-              "t_ms": 3281,
+              "t_ms": 2500,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -1809,7 +1820,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -1817,12 +1828,12 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 5968,
+                "latency_ms": 5859,
                 "usage": {
-                  "prompt_tokens": 595,
+                  "prompt_tokens": 641,
                   "completion_tokens": 32,
-                  "total_duration_ms": 3914,
-                  "load_duration_ms": 7
+                  "total_duration_ms": 3821,
+                  "load_duration_ms": 4
                 },
                 "tool_calls": [
                   {
@@ -1838,7 +1849,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "decision",
               "data": {
                 "point": "apply_locked_param",
@@ -1848,7 +1859,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -1864,7 +1875,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "tool_error",
               "data": {
                 "name": "search_knowledge_base",
@@ -1874,7 +1885,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "decision",
               "data": {
                 "point": "tool_failed",
@@ -1883,7 +1894,7 @@
               }
             },
             {
-              "t_ms": 9250,
+              "t_ms": 8359,
               "type": "final",
               "data": {
                 "status": "error",
@@ -1984,10 +1995,10 @@
               }
             }
           ],
-          "duration_ms": 0,
+          "duration_ms": 15,
           "trace": [
             {
-              "t_ms": 0,
+              "t_ms": 15,
               "type": "state",
               "data": {
                 "stage": "received",
@@ -1996,7 +2007,7 @@
               }
             },
             {
-              "t_ms": 0,
+              "t_ms": 15,
               "type": "decision",
               "data": {
                 "point": "guardrails",
@@ -2008,7 +2019,7 @@
               }
             },
             {
-              "t_ms": 0,
+              "t_ms": 15,
               "type": "final",
               "data": {
                 "status": "rejected",
@@ -2150,7 +2161,7 @@
       },
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 7437,
+      "duration_ms": 7422,
       "steps": [
         {
           "step": 1,
@@ -2159,7 +2170,7 @@
           "passed": true,
           "status": "escalated",
           "error_code": "index_unavailable",
-          "answer": "Поиск по базе знаний сейчас недоступен, поэтому ответить не могу. Сбой передан: администратор сервиса, обращение ESC-20261119-0006.\nПроверьте, что индекс собран (python src/build_index.py --profile public) и что хранилище Qdrant не открыто другим процессом.",
+          "answer": "Поиск по базе знаний сейчас недоступен, поэтому ответить не могу. Сбой передан: администратор сервиса, обращение ESC-20261119-0004.\nПроверьте, что индекс собран (python src/build_index.py --profile public) и что хранилище Qdrant не открыто другим процессом.",
           "sources": [],
           "warnings": [],
           "llm_calls": 1,
@@ -2190,7 +2201,7 @@
               "error_code": null,
               "error": null,
               "result_summary": {
-                "id": "ESC-20261119-0006",
+                "id": "ESC-20261119-0004",
                 "queued": true
               },
               "latency_ms": 0,
@@ -2239,7 +2250,7 @@
               }
             }
           ],
-          "duration_ms": 7421,
+          "duration_ms": 7422,
           "trace": [
             {
               "t_ms": 0,
@@ -2280,7 +2291,7 @@
               }
             },
             {
-              "t_ms": 7405,
+              "t_ms": 7407,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -2290,10 +2301,10 @@
                 "tools_offered": true,
                 "latency_ms": 7390,
                 "usage": {
-                  "prompt_tokens": 603,
+                  "prompt_tokens": 649,
                   "completion_tokens": 44,
-                  "total_duration_ms": 5358,
-                  "load_duration_ms": 5
+                  "total_duration_ms": 5354,
+                  "load_duration_ms": 6
                 },
                 "tool_calls": [
                   {
@@ -2309,7 +2320,7 @@
               }
             },
             {
-              "t_ms": 7405,
+              "t_ms": 7407,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -2322,7 +2333,7 @@
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "tool_error",
               "data": {
                 "name": "search_knowledge_base",
@@ -2332,7 +2343,7 @@
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "decision",
               "data": {
                 "point": "tool_failed",
@@ -2341,7 +2352,7 @@
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "tool_call",
               "data": {
                 "name": "escalate_to_human",
@@ -2355,29 +2366,29 @@
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "tool_result",
               "data": {
                 "name": "escalate_to_human",
                 "latency_ms": 0,
                 "status": "success",
-                "ticket": "ESC-20261119-0006",
+                "ticket": "ESC-20261119-0004",
                 "queued": true
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "decision",
               "data": {
                 "point": "escalation",
                 "reason": "component_failure",
                 "owner": "администратор сервиса",
-                "ticket": "ESC-20261119-0006",
+                "ticket": "ESC-20261119-0004",
                 "rule": "E3"
               }
             },
             {
-              "t_ms": 7421,
+              "t_ms": 7422,
               "type": "final",
               "data": {
                 "status": "escalated",
@@ -2423,7 +2434,7 @@
       },
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://127.0.0.1:9 (num_ctx=8192, temperature=0.0)",
       "passed": true,
-      "duration_ms": 5047,
+      "duration_ms": 4500,
       "steps": [
         {
           "step": 1,
@@ -2541,7 +2552,7 @@
               "actual": 4
             }
           ],
-          "duration_ms": 5032,
+          "duration_ms": 4483,
           "trace": [
             {
               "t_ms": 0,
@@ -2582,7 +2593,7 @@
               }
             },
             {
-              "t_ms": 2984,
+              "t_ms": 2452,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -2594,7 +2605,7 @@
               }
             },
             {
-              "t_ms": 5016,
+              "t_ms": 4468,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -2604,7 +2615,7 @@
               }
             },
             {
-              "t_ms": 5016,
+              "t_ms": 4468,
               "type": "decision",
               "data": {
                 "point": "llm_unavailable",
@@ -2612,7 +2623,7 @@
               }
             },
             {
-              "t_ms": 5016,
+              "t_ms": 4468,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -2627,7 +2638,7 @@
               }
             },
             {
-              "t_ms": 5032,
+              "t_ms": 4483,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
@@ -2649,7 +2660,7 @@
               }
             },
             {
-              "t_ms": 5032,
+              "t_ms": 4483,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -2658,7 +2669,7 @@
               }
             },
             {
-              "t_ms": 5032,
+              "t_ms": 4483,
               "type": "final",
               "data": {
                 "status": "degraded",
@@ -2701,7 +2712,7 @@
       "overrides": {},
       "agent": "KB Search Agent | профиль public | retriever qdrant | Ollama qwen2.5:7b-instruct @ http://localhost:11434 (num_ctx=8192, temperature=0.0)",
       "passed": false,
-      "duration_ms": 103250,
+      "duration_ms": 82407,
       "steps": [
         {
           "step": 1,
@@ -2710,7 +2721,7 @@
           "passed": true,
           "status": "answered",
           "error_code": null,
-          "answer": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. Архитектура SIPS включает три компонента: FRONT-END, BACK-END и операционное ядро.\n\nFRONT-END отвечает на четыре ключевых пользовательских запроса:\n1. Каков будет эффект от заданной инвестиционной программы (ИП)?\n2. Какой эффект для компании от изменения параметров ИП и/или сценария?\n3. Какова будет оптимальная ИП при заданных критериях и ограничениях?\n4. Как обеспечить покрытие дефицита финансирования ИП?\n\nBACK-END включает расчётные модели и алгоритмы.\n\nSIPS универсален для любых отраслей, максимальный эффект достигается там, где много однотипных активов. Сегменты с быстрой отдачей включают города (инфраструктура и городские активы), электроэнергетику (генерация, сети, тяговые подстанции), транспорт (подвижной состав и инфраструктура), инфокоммуникации (сети, вышки, дата-центры) и промышленность (оборудование и производственные линии).\n\nИсточники: [Фрагмент 1, Фрагмент 2, Фрагмент 3, Фрагмент 4]",
+          "answer": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. SIPS решает проблемы рассинхронизации стратегии и инвестиционной программы, обеспечивая интеграцию и прозрачность процессов. Архитектура SIPS включает три компонента: фронт-энд, бэк-энд и операционное ядро. Фронт-энд отвечает на ключевые пользовательские запросы, а бэк-энд включает расчётные модели и алгоритмы. Операционное ядро представляет собой цифровой двойник производственной системы.\n\nИсточники: [Фрагмент 1, Фрагмент 2, Фрагмент 4]",
           "sources": [
             {
               "fragment": 1,
@@ -2718,7 +2729,7 @@
               "file_name": "02_sips_investment_planning.pdf",
               "category": "products/strategic_investment_planning",
               "chunk_index": 0,
-              "score": 0.8828
+              "score": 0.9022
             },
             {
               "fragment": 2,
@@ -2726,15 +2737,7 @@
               "file_name": "02_sips_investment_planning.pdf",
               "category": "products/strategic_investment_planning",
               "chunk_index": 3,
-              "score": 0.8648
-            },
-            {
-              "fragment": 3,
-              "document_name": "SIPS — Strategic Investment Planning Suite",
-              "file_name": "02_sips_investment_planning.pdf",
-              "category": "products/strategic_investment_planning",
-              "chunk_index": 9,
-              "score": 0.8563
+              "score": 0.8751
             },
             {
               "fragment": 4,
@@ -2742,7 +2745,7 @@
               "file_name": "02_sips_investment_planning.pdf",
               "category": "products/strategic_investment_planning",
               "chunk_index": 4,
-              "score": 0.7847
+              "score": 0.7947
             }
           ],
           "warnings": [],
@@ -2751,7 +2754,8 @@
             {
               "name": "search_knowledge_base",
               "arguments": {
-                "query": "Что такое SIPS?",
+                "query": "что такое sips",
+                "top_k": 4,
                 "files": [
                   "02_sips_investment_planning.pdf"
                 ]
@@ -2771,13 +2775,13 @@
                   3,
                   4
                 ],
-                "top_score": 0.8828,
+                "top_score": 0.9022,
                 "files": [
                   "02_sips_investment_planning.pdf"
                 ]
               },
               "latency_ms": 16,
-              "source": "forced"
+              "source": "llm"
             }
           ],
           "checks": [
@@ -2802,7 +2806,6 @@
               "actual": [
                 "02_sips_investment_planning.pdf",
                 "02_sips_investment_planning.pdf",
-                "02_sips_investment_planning.pdf",
                 "02_sips_investment_planning.pdf"
               ]
             },
@@ -2813,7 +2816,7 @@
               "actual": 2
             }
           ],
-          "duration_ms": 71282,
+          "duration_ms": 52577,
           "trace": [
             {
               "t_ms": 0,
@@ -2849,7 +2852,7 @@
               }
             },
             {
-              "t_ms": 3062,
+              "t_ms": 2532,
               "type": "decision",
               "data": {
                 "point": "document_filter",
@@ -2861,7 +2864,7 @@
               }
             },
             {
-              "t_ms": 6702,
+              "t_ms": 8327,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -2869,45 +2872,44 @@
                 "ok": true,
                 "messages": 2,
                 "tools_offered": true,
-                "latency_ms": 3640,
+                "latency_ms": 5795,
                 "usage": {
-                  "prompt_tokens": 590,
-                  "completion_tokens": 13,
-                  "total_duration_ms": 1617,
-                  "load_duration_ms": 10
+                  "prompt_tokens": 636,
+                  "completion_tokens": 32,
+                  "total_duration_ms": 3774,
+                  "load_duration_ms": 4
                 },
-                "tool_calls": [],
+                "tool_calls": [
+                  {
+                    "name": "search_knowledge_base",
+                    "arguments": {
+                      "query": "что такое sips",
+                      "top_k": 4
+                    }
+                  }
+                ],
                 "tool_call_parsed_from_text": false,
-                "content_preview": "Недостаточно информации в предоставленных документах."
+                "content_preview": ""
               }
             },
             {
-              "t_ms": 6702,
-              "type": "decision",
-              "data": {
-                "point": "route",
-                "route": "forced_search",
-                "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
-                "llm_text_discarded": "Недостаточно информации в предоставленных документах."
-              }
-            },
-            {
-              "t_ms": 6702,
+              "t_ms": 8327,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
                 "arguments": {
-                  "query": "Что такое SIPS?",
+                  "query": "что такое sips",
+                  "top_k": 4,
                   "files": [
                     "02_sips_investment_planning.pdf"
                   ]
                 },
-                "source": "forced",
+                "source": "llm",
                 "iteration": 1
               }
             },
             {
-              "t_ms": 6719,
+              "t_ms": 8344,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
@@ -2922,14 +2924,14 @@
                   3,
                   4
                 ],
-                "top_score": 0.8828,
+                "top_score": 0.9022,
                 "files": [
                   "02_sips_investment_planning.pdf"
                 ]
               }
             },
             {
-              "t_ms": 71282,
+              "t_ms": 52577,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -2937,51 +2939,49 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 64562,
+                "latency_ms": 44233,
                 "usage": {
-                  "prompt_tokens": 1840,
-                  "completion_tokens": 349,
-                  "total_duration_ms": 62502,
-                  "load_duration_ms": 4
+                  "prompt_tokens": 1887,
+                  "completion_tokens": 192,
+                  "total_duration_ms": 42184,
+                  "load_duration_ms": 5
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
-                "content_preview": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. Архитектура SIPS включает три ко"
+                "content_preview": "SIPS — это Strategic Investment Planning Suite, это цифровой двойник системы принятия стратегически ориентированных инвестиционных решений в условиях неопределенности. SIPS решает проблемы рассинхрони"
               }
             },
             {
-              "t_ms": 71282,
+              "t_ms": 52577,
               "type": "validation",
               "data": {
                 "kind": "citations",
                 "cited": [
                   1,
                   2,
-                  3,
                   4
                 ],
                 "valid": [
                   1,
                   2,
-                  3,
                   4
                 ],
                 "invalid": []
               }
             },
             {
-              "t_ms": 71282,
+              "t_ms": 52577,
               "type": "validation",
               "data": {
                 "kind": "grounding",
                 "grounded": true,
-                "units": 9,
+                "units": 5,
                 "unsupported": [],
                 "regenerations": 0
               }
             },
             {
-              "t_ms": 71282,
+              "t_ms": 52577,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -2990,13 +2990,13 @@
               }
             },
             {
-              "t_ms": 71282,
+              "t_ms": 52577,
               "type": "final",
               "data": {
                 "status": "answered",
                 "error_code": null,
                 "state": {
-                  "route": "forced_search",
+                  "route": "tools",
                   "iteration": 2,
                   "llm_calls": 2,
                   "tool_calls": 1,
@@ -3051,7 +3051,7 @@
                   "projects_2020.md"
                 ]
               },
-              "latency_ms": 15,
+              "latency_ms": 31,
               "source": "forced"
             }
           ],
@@ -3103,7 +3103,7 @@
               "actual": 4
             }
           ],
-          "duration_ms": 31952,
+          "duration_ms": 29829,
           "trace": [
             {
               "t_ms": 0,
@@ -3154,7 +3154,7 @@
               }
             },
             {
-              "t_ms": 8577,
+              "t_ms": 6484,
               "type": "llm_call",
               "data": {
                 "stage": "plan",
@@ -3162,30 +3162,30 @@
                 "ok": true,
                 "messages": 4,
                 "tools_offered": true,
-                "latency_ms": 8577,
+                "latency_ms": 6484,
                 "usage": {
-                  "prompt_tokens": 763,
-                  "completion_tokens": 36,
-                  "total_duration_ms": 6512,
-                  "load_duration_ms": 4
+                  "prompt_tokens": 823,
+                  "completion_tokens": 13,
+                  "total_duration_ms": 4423,
+                  "load_duration_ms": 5
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
-                "content_preview": "Объем электрификации путей в примере оптимизации не указан в предоставленных фрагментах.\n\nИсточники: [1]"
+                "content_preview": "Недостаточно информации в предоставленных документах."
               }
             },
             {
-              "t_ms": 8577,
+              "t_ms": 6484,
               "type": "decision",
               "data": {
                 "point": "route",
                 "route": "forced_search",
                 "reason": "LLM не вызвала tool на вопрос по базе знаний — поиск выполняется принудительно",
-                "llm_text_discarded": "Объем электрификации путей в примере оптимизации не указан в предоставленных фрагментах.\n\nИсточники: [1]"
+                "llm_text_discarded": "Недостаточно информации в предоставленных документах."
               }
             },
             {
-              "t_ms": 8577,
+              "t_ms": 6484,
               "type": "decision",
               "data": {
                 "point": "apply_followup_context",
@@ -3197,7 +3197,7 @@
               }
             },
             {
-              "t_ms": 8577,
+              "t_ms": 6484,
               "type": "tool_call",
               "data": {
                 "name": "search_knowledge_base",
@@ -3209,11 +3209,11 @@
               }
             },
             {
-              "t_ms": 8592,
+              "t_ms": 6516,
               "type": "tool_result",
               "data": {
                 "name": "search_knowledge_base",
-                "latency_ms": 15,
+                "latency_ms": 31,
                 "count": 4,
                 "fragments_in_context": 4,
                 "top_k": 4,
@@ -3234,7 +3234,7 @@
               }
             },
             {
-              "t_ms": 31952,
+              "t_ms": 29829,
               "type": "llm_call",
               "data": {
                 "stage": "answer",
@@ -3242,12 +3242,12 @@
                 "ok": true,
                 "messages": 6,
                 "tools_offered": true,
-                "latency_ms": 23359,
+                "latency_ms": 23312,
                 "usage": {
-                  "prompt_tokens": 2077,
+                  "prompt_tokens": 2137,
                   "completion_tokens": 13,
-                  "total_duration_ms": 21281,
-                  "load_duration_ms": 5
+                  "total_duration_ms": 21284,
+                  "load_duration_ms": 6
                 },
                 "tool_calls": [],
                 "tool_call_parsed_from_text": false,
@@ -3255,7 +3255,7 @@
               }
             },
             {
-              "t_ms": 31952,
+              "t_ms": 29829,
               "type": "validation",
               "data": {
                 "kind": "not_found_phrase",
@@ -3263,7 +3263,7 @@
               }
             },
             {
-              "t_ms": 31952,
+              "t_ms": 29829,
               "type": "memory",
               "data": {
                 "action": "add_turn",
@@ -3272,7 +3272,7 @@
               }
             },
             {
-              "t_ms": 31952,
+              "t_ms": 29829,
               "type": "final",
               "data": {
                 "status": "not_found",
