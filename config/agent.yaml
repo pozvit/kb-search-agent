@@ -89,6 +89,8 @@ service:                          # HTTP API (python src/serve.py)
   port: 8000
   session_ttl_minutes: 30         # память сессии живёт 30 минут с последнего запроса
   max_sessions: 200               # больше — вытесняется самая давняя
+  log_level: "INFO"               # переменная LOG_LEVEL
+  log_format: "json"              # json | text; переменная LOG_FORMAT. Текст вопросов и ответов не пишется
 
 validation:
   check_numbers: true             # числа в ответе сверяются с текстом фрагментов
