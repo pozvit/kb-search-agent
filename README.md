@@ -126,7 +126,13 @@ AGENT_LLM_BASE_URL=http://localhost:11434
 AGENT_LLM_MODEL=qwen2.5:7b-instruct
 AGENT_RETRIEVER=qdrant                # qdrant или lexical
 AGENT_PROFILE=public                  # public или full
+RAG_EMBEDDINGS_ALLOW_DOWNLOAD=1       # 0 — модель эмбеддингов только из локального кэша
+ESCALATION_QUEUE_PATH=data/escalations/escalations.jsonl
+LOG_LEVEL=INFO                        # DEBUG, INFO, WARNING, ERROR
+LOG_FORMAT=json                       # json или text
 ```
+
+Полный список с пояснениями — в `.env.example`. Тест `tests/test_configuration.py` проверяет, что в шаблоне описана каждая переменная, которую читает код, а у ключей и токенов в шаблоне нет значений.
 
 Флаги командной строки имеют приоритет над переменными окружения, переменные над `agent.yaml`.
 
