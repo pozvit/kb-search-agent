@@ -1,7 +1,10 @@
-Γ£ô GET /health = 200        HTTP 200, llm: ok, index: ok, catalog: ok
-Γ£ô ╨ö╨╛╨║╤â╨╝╨╡╨╜╤é (CS-01)         HTTP 200, answered / documents, ╨╕╤ü╤é╨╛╤ç╨╜╨╕╨║╨╛╨▓ 1, 88.9 ╤ü
-Γ£ô ╨á╨╡╨╡╤ü╤é╤Ç (CS-05)           HTTP 200, answered / registry, ╨╕╤ü╤é╨╛╤ç╨╜╨╕╨║╨╛╨▓ 5, 0.0 ╤ü
-Γ£ô ╨í╨╡╨║╤Ç╨╡╤é (CS-16)           HTTP 200, rejected / rejected, ╨╕╤ü╤é╨╛╤ç╨╜╨╕╨║╨╛╨▓ 0, 0.0 ╤ü
-Γ£ô ╨¥╨╡╨║╨╛╤Ç╤Ç╨╡╨║╤é╨╜╤ï╨╣ ╨╖╨░╨┐╤Ç╨╛╤ü      HTTP 422, invalid_request, 0.0 ╤ü
+Проверка развёртывания KB Search Agent: http://127.0.0.1:8000
+2026-11-20T10:34:34+03:00, Windows 11
 
-╨ÿ╤é╨╛╨│: 5 ╨╕╨╖ 5 ╨┐╤Ç╨╛╨▓╨╡╤Ç╨╛╨║ ╨┐╤Ç╨╛╨╣╨┤╨╡╨╜╨╛
+✓ GET /health = 200        HTTP 200, llm: ok, index: ok, catalog: ok
+✓ Документ (CS-01)         HTTP 200, answered / documents, источников 1, 83.2 с
+✓ Реестр (CS-05)           HTTP 200, answered / registry, источников 5, 0.0 с
+✓ Секрет (CS-16)           HTTP 200, rejected / rejected, источников 0, 0.0 с
+✓ Некорректный запрос      HTTP 422, invalid_request, 0.0 с
+
+Итог: 5 из 5 проверок пройдено

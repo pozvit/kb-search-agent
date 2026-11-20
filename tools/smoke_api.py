@@ -7,12 +7,17 @@
   4. секрет в вопросе (CS-16): rejected, секрет не возвращается в ответе;
   5. некорректный запрос: 422 с понятным сообщением.
 
-Запуск:  python tools/smoke_api.py [--url http://127.0.0.1:8000] [--wait 600]
+Запуск:  python tools/smoke_api.py [--url http://127.0.0.1:8000] [--wait 600] [--out reports/deploy_check.txt]
 Только стандартная библиотека Python. Код возврата 1, если какая-то проверка не прошла.
+
+--out записывает отчёт в файл в UTF-8 сам. Не перенаправляйте вывод через | Tee-Object или > в PowerShell:
+он перекодирует текст в кодировку консоли, и кириллица в файле испортится.
 """
 
 import argparse
+import datetime
 import json
+import platform
 import sys
 import time
 import urllib.error
@@ -52,6 +57,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Проверка развёртывания KB Search Agent")
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--wait", type=float, default=600, help="сколько секунд ждать /health = 200")
+    parser.add_argument("--out", default=None, help="записать отчёт в файл (UTF-8)")
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -80,10 +86,17 @@ def main(argv=None) -> int:
                 f"{body.get('status')} / {body.get('route')}, источников {len(body.get('sources', []))}"
             results.append((name, passed, f"HTTP {code}, {info}, {time.monotonic() - started:.1f} с"))
 
-    for name, passed, detail in results:
-        print(f"{'✓' if passed else '✗'} {name:24} {detail}")
     failed = [r for r in results if not r[1]]
-    print(f"\nИтог: {len(results) - len(failed)} из {len(results)} проверок пройдено")
+    lines = [f"Проверка развёртывания KB Search Agent: {base}",
+             f"{datetime.datetime.now().astimezone().isoformat(timespec='seconds')}, {platform.system()} {platform.release()}", ""]
+    lines += [f"{'✓' if passed else '✗'} {name:24} {detail}" for name, passed, detail in results]
+    lines += ["", f"Итог: {len(results) - len(failed)} из {len(results)} проверок пройдено"]
+    print("\n".join(lines))
+    if args.out:
+        from pathlib import Path
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"Отчёт: {args.out}")
     return 1 if failed else 0
 
 

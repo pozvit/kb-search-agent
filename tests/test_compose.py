@@ -94,3 +94,13 @@ def test_api_image_is_built_locally_not_pulled():
     """Без pull_policy: build compose сначала ищет kb-agent в Docker Hub и пишет «pull access denied»."""
     api = COMPOSE["services"]["api"]
     assert api["build"] == "." and api.get("pull_policy") == "build"
+
+
+def test_smoke_writes_utf8_report(monkeypatch, tmp_path):
+    """Отчёт пишется самим скриптом в UTF-8: перенаправление через PowerShell портило кириллицу."""
+    monkeypatch.setattr(smoke_api, "call", fake_call(GOOD))
+    out = tmp_path / "deploy_check.txt"
+    assert smoke_api.main(["--wait", "1", "--out", str(out)]) == 0
+    text = out.read_text(encoding="utf-8")
+    assert "Итог: 5 из 5 проверок пройдено" in text and "Реестр (CS-05)" in text
+
