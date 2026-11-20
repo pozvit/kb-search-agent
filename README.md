@@ -28,8 +28,8 @@
 Нужен Docker Desktop с WSL 2 (на Windows) и около 8 ГБ памяти для Docker: модель qwen2.5 занимает в памяти около 6 ГБ.
 
 ```bash
-git clone https://github.com/pozvit/kb_agent.git
-cd kb_agent
+git clone https://github.com/pozvit/kb-search-agent.git
+cd kb-search-agent
 docker compose up -d
 python tools/smoke_api.py
 ```
