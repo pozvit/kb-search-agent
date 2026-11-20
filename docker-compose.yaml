@@ -1,0 +1,59 @@
+# KB Search Agent: HTTP API + локальная модель (Ollama) одной командой.
+#
+#   docker compose up -d                 # первый запуск: скачивание модели (~4,7 ГБ) и сборка индекса
+#   python tools/smoke_api.py            # проверка развёртывания
+#   docker compose logs -f api           # журнал сервиса (JSON, без текста вопросов)
+#   docker compose down                  # остановить; данные остаются в томах
+#
+# Модель на CPU: на ответ с генерацией уходят десятки секунд. Ollama нужно ~6 ГБ памяти:
+# в Docker Desktop проверьте Settings → Resources → Memory.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # однократно скачивает модель в том ollama_models и завершается
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["ollama", "pull", "qwen2.5:7b-instruct"]
+    restart: "no"
+
+  api:
+    build: .
+    image: kb-agent:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      AGENT_PROFILE: public
+      AGENT_LLM_BASE_URL: http://ollama:11434
+      AGENT_LLM_MODEL: qwen2.5:7b-instruct
+      LOG_FORMAT: json
+    ports:
+      - "127.0.0.1:8000:8000"     # только с этого компьютера: у сервиса нет авторизации
+    volumes:
+      - kb_index:/app/data/public                # индекс public_v2, собирается при первом запуске
+      - kb_hf:/home/app/.cache/huggingface       # модель эмбеддингов, скачивается один раз
+      - kb_escalations:/app/data/escalations     # очередь обращений к ответственным
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  kb_index:
+  kb_hf:
+  kb_escalations:

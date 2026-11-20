@@ -7,6 +7,7 @@ HTTP API сервиса: POST /ask и GET /health (требования F1, F2, 
 Запуск: python src/serve.py  (или uvicorn с фабрикой create_app).
 """
 
+import logging
 import threading
 import time
 import uuid
@@ -17,6 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from service.health import health
+from service.log import configure_logging, events_from_trace, log_event, session_hash
 from service.schemas import AskRequest, AskResponse, HealthResponse
 from service.sessions import SessionStore
 
@@ -54,12 +56,13 @@ def warning_code(text: str) -> str:
 
 def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = None,
                memory_factory: Optional[Callable[[], Any]] = None, service_config: Optional[Dict[str, Any]] = None,
-               clock: Callable[[], float] = time.monotonic) -> FastAPI:
+               clock: Callable[[], float] = time.monotonic, log_stream: Any = None) -> FastAPI:
     """
     agent — готовый агент (тесты); agent_factory — создать агента при старте (сервис).
     Если агента создать не удалось, сервис поднимается и отвечает 503 service_unavailable.
     """
     cfg = service_config or {}
+    configure_logging(cfg.get("log_level"), cfg.get("log_format"), stream=log_stream)
     app = FastAPI(title="KB Search Agent", version=VERSION,
                   description="Поиск по базе знаний: реестры проектов и пропозалов, документы продуктов и КП.")
     state: Dict[str, Any] = {"agent": agent, "startup_error": None}
@@ -68,7 +71,12 @@ def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = N
             state["agent"] = agent_factory()
         except Exception as exc:                            # сервис поднимается, но честно говорит, что не готов
             state["startup_error"] = type(exc).__name__
+            log_event("error", None, logging.ERROR, code="startup_failed", exception=type(exc).__name__, where="startup")
     lock = threading.Lock()
+    # без этой строки после сборки индекса журнал молчит до первого запроса, и кажется, что сервис завис
+    log_event("service_started", None, profile=str((state["agent"].config.get("profile") if state["agent"] else None)
+                                                   or cfg.get("profile", "?")),
+              version=VERSION, agent_ready=state["agent"] is not None, startup_error=state["startup_error"])
 
     def default_memory():
         from agent_memory import ShortTermMemory
@@ -84,7 +92,10 @@ def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = N
         request.state.request_id = str(uuid.uuid4())
         try:
             return await call_next(request)
-        except Exception:                                   # S4: без traceback, путей и конфигурации
+        except Exception as exc:                            # S4: без traceback, путей и конфигурации
+            # в журнал — класс исключения и место, но не сообщение: в нём бывают данные и пути
+            log_event("error", request.state.request_id, logging.ERROR, code="internal_error",
+                      exception=type(exc).__name__, where=request.url.path)
             return error(500, "internal_error", "Внутренняя ошибка сервиса. Подробности — в журнале по request_id.",
                          request.state.request_id)
 
@@ -95,6 +106,8 @@ def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = N
             field = ".".join(str(p) for p in e.get("loc", []) if p != "body") or "body"
             message = str(e.get("msg", "")).replace("Value error, ", "")
             problems.append(f"{field}: {message}")
+        fields = sorted({".".join(str(p) for p in e.get("loc", []) if p != "body") or "body" for e in exc.errors()})
+        log_event("invalid_request", getattr(request.state, "request_id", None), logging.WARNING, fields=fields)
         return error(422, "invalid_request", "; ".join(problems) or "некорректный запрос",
                      getattr(request.state, "request_id", str(uuid.uuid4())))
 
@@ -103,15 +116,25 @@ def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = N
         rid = request.state.request_id
         agent_ = state["agent"]
         if agent_ is None:
+            log_event("error", rid, logging.ERROR, code="service_unavailable", where="/ask")
             return error(503, "service_unavailable", "Сервис не готов: агент не инициализирован.", rid)
-        session_id, session, _ = sessions.get_or_create(body.session_id)
+        session_id, session, created = sessions.get_or_create(body.session_id)
+        log_event("request_received", rid, question_len=len(body.question), has_session=body.session_id is not None,
+                  session_hash=session_hash(session_id), new_session=created)
         with lock:                                          # один агент — запросы по одному
             agent_.memory = session.memory
             response = agent_.run(body.question)
+        for event, fields in events_from_trace(response.trace.to_list() if response.trace else []):
+            log_event(event, rid, **fields)
+        route = "escalation" if response.status == "escalated" else ROUTES.get(response.route, response.route)
+        log_event("response_sent", rid, status=response.status, route=route,
+                  route_path=list(getattr(response, "route_path", []) or []), sources_count=len(response.sources or []),
+                  duration_ms=response.duration_ms, llm_calls=response.llm_calls,
+                  warnings_count=len(response.warnings or []), error_code=response.error_code)
         esc = response.escalation
         return {
             "request_id": rid, "session_id": session_id, "status": response.status,
-            "route": "escalation" if response.status == "escalated" else ROUTES.get(response.route, response.route),
+            "route": route,
             "route_path": list(getattr(response, "route_path", []) or []),
             "answer": response.answer, "sources": [to_source(s) for s in response.sources or []],
             "escalation": dict(esc) if esc else None,
