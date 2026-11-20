@@ -88,3 +88,9 @@ def test_smoke_fails_when_health_never_ready(monkeypatch):
     monkeypatch.setattr(smoke_api, "call", fake_call({**GOOD, "/health": (503, {"components": {"llm": {"status": "down"}}})}))
     monkeypatch.setattr(smoke_api.time, "sleep", lambda s: None)
     assert smoke_api.main(["--wait", "0.01"]) == 1
+
+
+def test_api_image_is_built_locally_not_pulled():
+    """Без pull_policy: build compose сначала ищет kb-agent в Docker Hub и пишет «pull access denied»."""
+    api = COMPOSE["services"]["api"]
+    assert api["build"] == "." and api.get("pull_policy") == "build"

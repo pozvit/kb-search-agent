@@ -34,6 +34,7 @@ services:
   api:
     build: .
     image: kb-agent:latest
+    pull_policy: build            # образ только собирается локально: без этого compose сначала ищет его в Docker Hub
     depends_on:
       ollama:
         condition: service_healthy
