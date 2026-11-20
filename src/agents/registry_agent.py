@@ -11,7 +11,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from agent_tools import detect_industries, detect_period, detect_services
 

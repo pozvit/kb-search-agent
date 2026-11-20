@@ -96,6 +96,7 @@ class Trace:
 class AgentState:
     """Состояние одного запуска; меняется по ходу цепочки и целиком попадает в trace."""
     query: str
+    request_id: Optional[str] = None                 # идентификатор запроса API: попадает в обращение эскалации
     locked_params: Dict[str, Any] = field(default_factory=dict)
     route: Optional[str] = None
     iteration: int = 0

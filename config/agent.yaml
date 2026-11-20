@@ -92,5 +92,3 @@ service:                          # HTTP API (python src/serve.py)
   log_level: "INFO"               # переменная LOG_LEVEL
   log_format: "json"              # json | text; переменная LOG_FORMAT. Текст вопросов и ответов не пишется
 
-validation:
-  check_numbers: true             # числа в ответе сверяются с текстом фрагментов

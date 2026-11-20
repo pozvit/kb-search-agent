@@ -123,7 +123,7 @@ def create_app(agent: Any = None, agent_factory: Optional[Callable[[], Any]] = N
                   session_hash=session_hash(session_id), new_session=created)
         with lock:                                          # один агент — запросы по одному
             agent_.memory = session.memory
-            response = agent_.run(body.question)
+            response = agent_.run(body.question, request_id=rid)   # обращение эскалации найдётся в журнале
         for event, fields in events_from_trace(response.trace.to_list() if response.trace else []):
             log_event(event, rid, **fields)
         route = "escalation" if response.status == "escalated" else ROUTES.get(response.route, response.route)

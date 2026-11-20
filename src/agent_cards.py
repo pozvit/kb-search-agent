@@ -15,7 +15,7 @@ import json
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 CARD_TYPE_RU = {"project": "проект", "proposal": "пропозал", "project_accounting": "проект учётной базы"}
 

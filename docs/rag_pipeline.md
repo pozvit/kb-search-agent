@@ -63,7 +63,7 @@
 - **Артефакты индексации**: `manifest.json`, `validation.json`, `search_results.json` в `data/vector_store/`.
 - **RAG-слой**: retrieval по вопросу, сборка контекста с лимитами, промпт «только по контексту»,
   генерация в YandexGPT 5 Lite, вывод использованных фрагментов со score и метаданными.
-- **Артефакты прогона**: `results/qa_results.json` и `results/qa_report.md` по 5 тестовым вопросам.
+- **Артефакты прогона**: `results/<метка>/qa_results.json` и `results/<метка>/qa_report.md` по 5 тестовым вопросам; прогоны этапа лежат в `results/baseline/`, `results/improved/` и других подпапках, сравнение — `results/OPTIMIZATION_REPORT.md`.
 
 ---
 
@@ -694,8 +694,8 @@ python src/rag_answer.py "Что такое SIPS?" --json
 python src/rag_eval.py
 ```
 
-`rag_eval.py` сохраняет `results/qa_results.json` (вопрос, найденные чанки, контекст, ответ)
-и `results/qa_report.md` (тот же материал в читаемом виде с полями «Оценка» и «Комментарий»
+`rag_eval.py` сохраняет `results/<метка>/qa_results.json` (вопрос, найденные чанки, контекст, ответ)
+и `results/<метка>/qa_report.md` (тот же материал в читаемом виде с полями «Оценка» и «Комментарий»
 под каждым ответом — их заполняете вручную после прогона).
 
 ### Контрольные точки прогона
@@ -962,7 +962,7 @@ python src/vector_pipeline.py && echo "INDEX OK"
 | q6 | переформулировка | Как быстро ежегодно прирастает рынок складов и промплощадок в России и Казахстане? |
 
 Ожидаемые ответы указаны в том же файле в поле `expected` — по ним удобно ставить оценку
-«корректно / частично корректно / некорректно» в `results/qa_report.md`.
+«корректно / частично корректно / некорректно» в `results/<метка>/qa_report.md`.
 
 Что считать успехом по каждому вопросу:
 
@@ -984,7 +984,7 @@ python src/vector_pipeline.py && echo "INDEX OK"
 
 ---
 
-## 12. Вывод о качестве работы пайплайна (подробнее в `results/qa_report.md`)
+## 12. Вывод о качестве работы пайплайна (подробнее в `results/baseline/qa_report.md` и итоговом сравнении `results/OPTIMIZATION_REPORT.md`)
 
 ### Использованные параметры (baseline)
 
@@ -1043,7 +1043,7 @@ python src/vector_pipeline.py && echo "INDEX OK"
 - `src/llm_client.py` — клиент на stdlib с двумя провайдерами: OpenAI-совместимый
   (OpenAI / Yandex Cloud / Ollama / DeepSeek) и нативный YandexGPT; ключи только из `.env`;
 - `src/rag_answer.py` — CLI: вопрос → ответ + использованные фрагменты (`--top-k`, `--no-llm`, `--json`);
-- `src/rag_eval.py` — прогон тестовых вопросов, артефакты `results/qa_results.json` и `results/qa_report.md`;
+- `src/rag_eval.py` — прогон тестовых вопросов, артефакты `results/<метка>/qa_results.json` и `results/<метка>/qa_report.md`;
 - `src/llm_check.py` — проверка доступа к LLM без Qdrant и индекса;
 - `config/rag.yaml`, `config/questions.yaml`, `.env.example`, `.gitignore`;
 - `tools/md_to_pdf.py` — опциональная пересборка базы знаний в PDF;
@@ -1078,7 +1078,7 @@ python src/vector_pipeline.py && echo "INDEX OK"
 
 ## 14. Параметры baseline-прогона
 
-Готовый вывод генерируется в `results/qa_report.md` при запуске `python src/rag_eval.py`:
+Готовый вывод генерируется в `results/<метка>/qa_report.md` при запуске `python src/rag_eval.py`:
 раздел «Краткий вывод» в конце отчёта. 
 
 Зафиксированные параметры (дублируются в шапке отчёта):

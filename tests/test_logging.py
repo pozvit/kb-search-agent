@@ -30,7 +30,7 @@ def run_requests(base_config, requests, llm=None, crash=False):
     for payload in requests:
         responses.append(client.post("/ask", json=payload))
     if crash:
-        def boom(q):
+        def boom(q, **kwargs):
             raise RuntimeError(r"C:\Users\Ivan.Petrov\KB\data\qdrant_storage: секретная причина")
         agent.run = boom
         responses.append(client.post("/ask", json={"question": "Что такое ORBIT?"}))

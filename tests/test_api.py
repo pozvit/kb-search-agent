@@ -70,7 +70,7 @@ def test_internal_error_is_500_without_details(base_config):
 
     original = agent.run
 
-    def boom(question):
+    def boom(question, **kwargs):
         raise RuntimeError(r"C:\secret\path qdrant_storage config agent.yaml")
     agent.run = boom
     r = client.post("/ask", json={"question": "Что такое ORBIT?"})
@@ -99,6 +99,8 @@ def test_escalation_fields(base_config, escalation_queue_in_tmp):
     assert body["status"] == "escalated" and body["route"] == "escalation"
     assert body["escalation"]["reason"] == "user_request" and body["escalation"]["id"].startswith("ESC-")
     assert body["route_path"] == ["escalation"]
+    ticket = json.loads(escalation_queue_in_tmp.read_text(encoding="utf-8").splitlines()[-1])
+    assert ticket["request_id"] == body["request_id"]            # обращение находится в журнале по request_id
 
 
 # ---------------------------------------------------------------- сессии (F7)

@@ -102,7 +102,7 @@ class Orchestrator(DocumentsAgent):
     def close(self) -> None:
         self.tools.close()
 
-    def run(self, query: Any) -> AgentResponse:
+    def run(self, query: Any, request_id: Optional[str] = None) -> AgentResponse:
         started = time.monotonic()
         trace = Trace()
 
@@ -111,7 +111,7 @@ class Orchestrator(DocumentsAgent):
         trace.add("state", stage="received", query=guard.safe_query, memory_size=len(self.memory))
         trace.add("decision", point="guardrails", allowed=guard.allowed, reason=guard.reason_code,
                   secret_kinds=guard.secret_kinds)
-        state = AgentState(query=guard.safe_query)
+        state = AgentState(query=guard.safe_query, request_id=request_id)
         if not guard.allowed:
             state.route = "guardrail_block"
             return self._finish(state, trace, started, STATUS_REJECTED, guard.message,
@@ -160,6 +160,7 @@ class Orchestrator(DocumentsAgent):
                     else {"type": "document", "id": f"{s.get('file_name')}#{s.get('chunk_index')}"}
                     for s in [f.source_dict() for f in state.fragments]]
         args = {"reason": reason, "question": state.query or "", "route_path": list(state.route_path),
+                "request_id": state.request_id,
                 "evidence": evidence, "topic": topic}
         call = ToolCall(name="escalate_to_human", iteration=state.iteration, source="rules",
                         arguments={"reason": reason, "topic": topic, "evidence": len(evidence)})

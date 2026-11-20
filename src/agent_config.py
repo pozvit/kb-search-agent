@@ -39,7 +39,8 @@ def load_agent_config(path: str = DEFAULT_AGENT_CONFIG, profile: Optional[str] =
                       overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Возвращает словарь:
-        agent, llm, tools, context, validation — из agent.yaml (+ overrides с префиксами agent./llm./...)
+        agent, llm, tools, context, memory, guardrails, router, grounding, escalation, service — из agent.yaml
+                  (+ overrides с префиксами agent./llm./...)
         rag       — конфиг retrieval выбранного профиля (+ overrides с префиксами retrieval./paths.)
         profile   — имя профиля
     """
