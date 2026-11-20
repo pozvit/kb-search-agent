@@ -60,7 +60,7 @@ def test_e4_escalates_without_model_with_owner_by_topic(make_agent, escalation_q
     assert r.escalation["owner"] == "владелец реестра проектов" and r.route_path == ["escalation"]
     assert r.tool_names == ["escalate_to_human"]
     r2 = make_agent(llm=ScriptedLLM([])).run("Передайте вопрос специалисту по коммерческим предложениям")
-    assert r2.escalation["owner"] == "владелец базы коммерческих предложений"
+    assert r2.escalation["owner"] == "владелец базы пропозалов"
 
 
 @pytest.mark.parametrize("question, expected", [

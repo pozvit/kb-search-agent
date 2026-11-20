@@ -91,7 +91,7 @@ CATEGORY_HINTS = {
     "internal/projects": "реестр проектов",
     "internal/proposals": "реестр пропозалов",
     "internal/projects_accounting": "проекты учётной базы: описания, Key findings, стоимость",
-    "internal/commercial_proposals": "тексты коммерческих предложений",
+    "internal/commercial_proposals": "тексты пропозалов",
 }
 
 
