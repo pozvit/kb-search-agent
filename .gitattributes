@@ -1,0 +1,4 @@
+# Скрипты и Dockerfile — с переводами строк LF и на Windows: иначе в контейнере Linux
+# скрипт не запустится («/bin/sh^M: not found»).
+*.sh        text eol=lf
+Dockerfile  text eol=lf

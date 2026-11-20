@@ -1,0 +1,22 @@
+# Контекст сборки: только то, что копирует Dockerfile. Требование S8 — полная база в образ не попадает.
+.git
+.gitignore
+.gitattributes
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.env
+*.log
+
+# данные: в образ — только public_v2 (5 PDF и синтетический реестр); реестры, КП и индексы — нет
+data/*
+!data/raw
+!data/raw_registry_public
+
+reports
+results
+docs
+tests
+tools
+scenario.md

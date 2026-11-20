@@ -53,8 +53,8 @@ INTERNAL_CODE = re.compile(r"(?<![\w])(P\d{8}|\d{2}_\d{3}\s?([A-Z]{3}))(?![\w])"
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.I)
 PHONE = re.compile(r"(?<![\d\w])(?:\+7|8)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}(?![\d])")
 
-# синтетические пути в тестах safe_path и примеры в документации
-ALLOWED_PROFILE_NAMES = {"ivan.petrov", "ivan", "имя", "user", "username", "you"}
+# синтетические пути в тестах safe_path, примеры в документации, служебный пользователь контейнера (Dockerfile)
+ALLOWED_PROFILE_NAMES = {"ivan.petrov", "ivan", "имя", "user", "username", "you", "app"}
 
 
 @dataclass
