@@ -28,3 +28,6 @@ data/agent/traces/
 data/escalations/
 .pytest_cache/
 *.log
+
+# отпечатки фамилий реальных сотрудников для проверки гигиены (tools/hygiene.py --build-denylist)
+.hygiene_denylist

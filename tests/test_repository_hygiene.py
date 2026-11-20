@@ -104,3 +104,44 @@ def test_history_scan_finds_data_removed_from_current_files(tmp_path):
     assert H.scan_files(H.project_files(tmp_path), tmp_path) == []          # сейчас файлы чисты
     history = H.scan_history(tmp_path)
     assert [f.kind for f in history] == ["person"] and history[0].where.endswith("notes.md")
+
+
+# ---------------------------------------------------------------- фамилии из полной базы (known_person)
+
+def test_known_person_found_in_any_case_without_initials(tmp_path):
+    """Фамилии из реестра ловятся в падеже и без инициалов — это пропускала проверка «Фамилия И.»."""
+    import json
+    cards = tmp_path / "cards_meta.jsonl"
+    surname = "Тимоф" + "еева"
+    cards.write_text(json.dumps({"team": [f"{surname} Т."], "partner": "Ангарский А."}, ensure_ascii=False),
+                     encoding="utf-8")
+    assert H.build_denylist([cards], root=tmp_path) == 1          # синтетика (Ангарский) не попадает
+    deny = H.load_denylist(tmp_path)
+    assert surname not in (tmp_path / H.DENYLIST_FILE).read_text(encoding="utf-8")   # хранятся отпечатки
+    for text in (f"Проекты {surname[:-1]}ой за 2025 год", f"работал с {surname[:-1]}ой", f"Т. {surname}",
+                 f"{surname} Татьяна"):
+        found = H.scan_text(text, "x", set(), denylist=deny)
+        assert [f.kind for f in found] == ["known_person"], text
+    assert H.scan_text("Тимур и Тимофей работали над проектом", "x", set(), denylist=deny) == []
+
+
+def test_without_denylist_known_person_is_skipped(tmp_path):
+    assert H.load_denylist(tmp_path) == set()
+
+
+def test_denylist_file_is_gitignored():
+    assert ".hygiene_denylist" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_denylist_takes_only_strict_person_records(tmp_path):
+    """В список попадает только «Фамилия И.»: заголовки и текст CSV («Data Science», «Опыт Работы») — нет."""
+    csv = tmp_path / "project_team.csv"
+    surname = "Тимоф" + "еева"
+    csv.write_text("ID;Опыт Работы;Data Science;System Group\n"
+                   f"P1;Процесс Перевозки грузов;{surname} Т.;Логистика Склада\n"
+                   "P2;Строительство Объектов;Data Engineering;Опыт Продаж\n", encoding="utf-8")
+    assert H.build_denylist([csv], root=tmp_path) == 1
+    deny = H.load_denylist(tmp_path)
+    text = "Опыт работы с системой, data science, логистика склада, процесс перевозки, System Group"
+    assert H.scan_text(text, "x", set(), denylist=deny) == []
+
