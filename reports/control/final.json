@@ -1,9 +1,9 @@
 {
   "label": "final",
-  "created_at": "2026-11-20T10:57:40",
+  "created_at": "2026-11-20T11:23:38",
   "version": {
     "dir": "~\\KB",
-    "describe": "baseline-2026-10-02-25-g4c687a0-dirty"
+    "describe": "final-2026-11-20"
   },
   "environment": {
     "llm": "ollama",
@@ -26,7 +26,7 @@
     "Q4_completeness_mean": 1.0,
     "Q6_latency_median_s": {
       "registry": 0.0,
-      "documents": 46.03
+      "documents": 41.58
     },
     "Q7_plan_prompt_tokens_median": 665,
     "Q8_forced_search_rate": 0.0,
@@ -54,7 +54,7 @@
           "required": false
         }
       },
-      "wall_ms": 46030,
+      "wall_ms": 41583,
       "status": "answered",
       "route_raw": "tools",
       "answer": "В бизнес-симуляторе ERGO моделируются пять сегментов рынка микроэлектроники:\n\n1. Военная электроника\n2. Электронные компоненты\n3. Промышленная электроника\n4. Low-end (потребительская) электроника\n5. Hi-end (премиум) электроника\n\nИсточники: [Фрагмент 2, Фрагмент 3]",
@@ -100,7 +100,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "decision",
           "data": {
             "point": "route_decided",
@@ -114,7 +114,7 @@
           }
         },
         {
-          "t_ms": 3202,
+          "t_ms": 3500,
           "type": "decision",
           "data": {
             "point": "document_filter",
@@ -126,7 +126,7 @@
           }
         },
         {
-          "t_ms": 11327,
+          "t_ms": 10187,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -134,19 +134,19 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 8125,
+            "latency_ms": 6687,
             "usage": {
               "prompt_tokens": 665,
               "completion_tokens": 49,
-              "total_duration_ms": 6085,
-              "load_duration_ms": 9
+              "total_duration_ms": 4614,
+              "load_duration_ms": 22
             },
             "tool_calls": [
               {
                 "name": "search_knowledge_base",
                 "arguments": {
-                  "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
-                  "top_k": 4
+                  "top_k": 4,
+                  "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO"
                 }
               }
             ],
@@ -155,13 +155,13 @@
           }
         },
         {
-          "t_ms": 11327,
+          "t_ms": 10187,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
             "arguments": {
-              "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
               "top_k": 4,
+              "query": "сегменты рынка микроэлектроники в бизнес-симуляторе ERGO",
               "files": [
                 "01_ergo_business_simulator.pdf"
               ]
@@ -171,11 +171,11 @@
           }
         },
         {
-          "t_ms": 11358,
+          "t_ms": 10250,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
-            "latency_ms": 30,
+            "latency_ms": 62,
             "count": 4,
             "fragments_in_context": 4,
             "top_k": 4,
@@ -193,7 +193,7 @@
           }
         },
         {
-          "t_ms": 46030,
+          "t_ms": 41578,
           "type": "llm_call",
           "data": {
             "stage": "answer",
@@ -201,12 +201,12 @@
             "ok": true,
             "messages": 4,
             "tools_offered": true,
-            "latency_ms": 34672,
+            "latency_ms": 31328,
             "usage": {
               "prompt_tokens": 2068,
               "completion_tokens": 103,
-              "total_duration_ms": 32649,
-              "load_duration_ms": 9
+              "total_duration_ms": 29271,
+              "load_duration_ms": 23
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -214,7 +214,7 @@
           }
         },
         {
-          "t_ms": 46030,
+          "t_ms": 41578,
           "type": "validation",
           "data": {
             "kind": "citations",
@@ -230,7 +230,7 @@
           }
         },
         {
-          "t_ms": 46030,
+          "t_ms": 41578,
           "type": "validation",
           "data": {
             "kind": "grounding",
@@ -241,7 +241,7 @@
           }
         },
         {
-          "t_ms": 46030,
+          "t_ms": 41578,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -250,7 +250,7 @@
           }
         },
         {
-          "t_ms": 46030,
+          "t_ms": 41578,
           "type": "final",
           "data": {
             "status": "answered",
@@ -361,7 +361,7 @@
           "required": false
         }
       },
-      "wall_ms": 41274,
+      "wall_ms": 37501,
       "status": "answered",
       "route_raw": "tools",
       "answer": "Цифровое ядро AIMS включает в себя три ключевых решения:\n\n1. Цифровой паспорт актива — единый источник правды об активе на всех стадиях жизненного цикла.\n2. Цифровой пульс актива — моделирует воздействия на актив и помогает принять оптимальное решение.\n3. Цифровая биржа имущества — перераспределяет активы туда, где они приносят наибольшую ценность.\n\nИсточники: [Фрагмент 1]",
@@ -413,7 +413,7 @@
           }
         },
         {
-          "t_ms": 2750,
+          "t_ms": 4670,
           "type": "decision",
           "data": {
             "point": "document_filter",
@@ -425,7 +425,7 @@
           }
         },
         {
-          "t_ms": 10031,
+          "t_ms": 10827,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -433,19 +433,19 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 7281,
+            "latency_ms": 6157,
             "usage": {
               "prompt_tokens": 649,
               "completion_tokens": 44,
-              "total_duration_ms": 5231,
-              "load_duration_ms": 7
+              "total_duration_ms": 4110,
+              "load_duration_ms": 9
             },
             "tool_calls": [
               {
                 "name": "search_knowledge_base",
                 "arguments": {
-                  "query": "цифровые решения входят в цифровое ядро AIMS",
-                  "top_k": 3
+                  "top_k": 3,
+                  "query": "цифровые решения входят в цифровое ядро AIMS"
                 }
               }
             ],
@@ -454,13 +454,13 @@
           }
         },
         {
-          "t_ms": 10031,
+          "t_ms": 10827,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
             "arguments": {
-              "query": "цифровые решения входят в цифровое ядро AIMS",
               "top_k": 3,
+              "query": "цифровые решения входят в цифровое ядро AIMS",
               "files": [
                 "03_aims_asset_management.pdf"
               ]
@@ -470,7 +470,7 @@
           }
         },
         {
-          "t_ms": 10047,
+          "t_ms": 10842,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
@@ -491,7 +491,7 @@
           }
         },
         {
-          "t_ms": 41265,
+          "t_ms": 37500,
           "type": "llm_call",
           "data": {
             "stage": "answer",
@@ -499,12 +499,12 @@
             "ok": true,
             "messages": 4,
             "tools_offered": true,
-            "latency_ms": 31217,
+            "latency_ms": 26657,
             "usage": {
               "prompt_tokens": 1584,
               "completion_tokens": 137,
-              "total_duration_ms": 29187,
-              "load_duration_ms": 7
+              "total_duration_ms": 24618,
+              "load_duration_ms": 13
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -512,7 +512,7 @@
           }
         },
         {
-          "t_ms": 41265,
+          "t_ms": 37500,
           "type": "validation",
           "data": {
             "kind": "citations",
@@ -526,7 +526,7 @@
           }
         },
         {
-          "t_ms": 41265,
+          "t_ms": 37500,
           "type": "validation",
           "data": {
             "kind": "grounding",
@@ -537,7 +537,7 @@
           }
         },
         {
-          "t_ms": 41265,
+          "t_ms": 37500,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -546,7 +546,7 @@
           }
         },
         {
-          "t_ms": 41265,
+          "t_ms": 37500,
           "type": "final",
           "data": {
             "status": "answered",
@@ -656,7 +656,7 @@
           "required": false
         }
       },
-      "wall_ms": 74086,
+      "wall_ms": 67887,
       "status": "answered",
       "route_raw": "tools",
       "answer": "Экономические эффекты при внедрении интегрированного планирования в горно-металлургической компании включают:\n\n- Сокращение затрат на логистику на 15% [Фрагмент 1].\n- Снижение сверхнормативных простоев и длительности оборота полувагонов на 10% [Фрагмент 1].\n- Оптимизация интермодальных ставок на перевозки до 12% [Фрагмент 1].\n\nОбщие эффекты от внедрения IBP включают:\n\n- Рост выручки на 3–7% [Фрагмент 2].\n- Сокращение потерь на стыках переделов на 3–12% [Фрагмент 2].\n- Повышение маржинальности заказов на 3–7% [Фрагмент 2].\n- Сокращение длительности производственного цикла на 7–12% [Фрагмент 2].\n- Снижение уровня замороженного капитала на 3–15% [Фрагмент 2].\n- Сокращение затрат на логистику на 5–15% [Фрагмент 2].\n\nИсточники: [Фрагмент 1, Фрагмент 2]",
@@ -720,7 +720,7 @@
           }
         },
         {
-          "t_ms": 9155,
+          "t_ms": 7594,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -728,12 +728,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 9155,
+            "latency_ms": 7594,
             "usage": {
               "prompt_tokens": 668,
               "completion_tokens": 59,
-              "total_duration_ms": 7116,
-              "load_duration_ms": 11
+              "total_duration_ms": 5527,
+              "load_duration_ms": 7
             },
             "tool_calls": [
               {
@@ -749,7 +749,7 @@
           }
         },
         {
-          "t_ms": 9155,
+          "t_ms": 7594,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
@@ -762,11 +762,11 @@
           }
         },
         {
-          "t_ms": 11875,
+          "t_ms": 11375,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
-            "latency_ms": 2719,
+            "latency_ms": 3780,
             "count": 4,
             "fragments_in_context": 4,
             "top_k": 4,
@@ -784,7 +784,7 @@
           }
         },
         {
-          "t_ms": 74077,
+          "t_ms": 67890,
           "type": "llm_call",
           "data": {
             "stage": "answer",
@@ -792,12 +792,12 @@
             "ok": true,
             "messages": 4,
             "tools_offered": true,
-            "latency_ms": 62202,
+            "latency_ms": 56515,
             "usage": {
               "prompt_tokens": 2132,
               "completion_tokens": 317,
-              "total_duration_ms": 60162,
-              "load_duration_ms": 7
+              "total_duration_ms": 54474,
+              "load_duration_ms": 22
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -805,7 +805,7 @@
           }
         },
         {
-          "t_ms": 74077,
+          "t_ms": 67890,
           "type": "validation",
           "data": {
             "kind": "citations",
@@ -821,7 +821,7 @@
           }
         },
         {
-          "t_ms": 74077,
+          "t_ms": 67890,
           "type": "validation",
           "data": {
             "kind": "grounding",
@@ -832,7 +832,7 @@
           }
         },
         {
-          "t_ms": 74077,
+          "t_ms": 67890,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -841,7 +841,7 @@
           }
         },
         {
-          "t_ms": 74077,
+          "t_ms": 67890,
           "type": "final",
           "data": {
             "status": "answered",
@@ -947,7 +947,7 @@
           "\\d[\\d\\s]*\\s?(руб|₽|\\$|долл|usd|eur|евро)"
         ]
       },
-      "wall_ms": 38471,
+      "wall_ms": 35559,
       "status": "escalated",
       "route_raw": "tools",
       "answer": "В базе знаний нет таких данных. Вопрос передан: владелец базы коммерческих предложений, обращение ESC-20261120-0001.",
@@ -1028,7 +1028,7 @@
           }
         },
         {
-          "t_ms": 2422,
+          "t_ms": 2625,
           "type": "decision",
           "data": {
             "point": "document_filter",
@@ -1040,7 +1040,7 @@
           }
         },
         {
-          "t_ms": 11328,
+          "t_ms": 10453,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -1048,12 +1048,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 8906,
+            "latency_ms": 7828,
             "usage": {
               "prompt_tokens": 663,
               "completion_tokens": 54,
-              "total_duration_ms": 6881,
-              "load_duration_ms": 7
+              "total_duration_ms": 5785,
+              "load_duration_ms": 16
             },
             "tool_calls": [
               {
@@ -1069,7 +1069,7 @@
           }
         },
         {
-          "t_ms": 11328,
+          "t_ms": 10453,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
@@ -1085,11 +1085,11 @@
           }
         },
         {
-          "t_ms": 11359,
+          "t_ms": 10469,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
-            "latency_ms": 30,
+            "latency_ms": 15,
             "count": 4,
             "fragments_in_context": 4,
             "top_k": 4,
@@ -1107,7 +1107,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "llm_call",
           "data": {
             "stage": "answer",
@@ -1115,12 +1115,12 @@
             "ok": true,
             "messages": 4,
             "tools_offered": true,
-            "latency_ms": 27109,
+            "latency_ms": 25092,
             "usage": {
               "prompt_tokens": 1877,
               "completion_tokens": 43,
-              "total_duration_ms": 25075,
-              "load_duration_ms": 8
+              "total_duration_ms": 23027,
+              "load_duration_ms": 5
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -1128,7 +1128,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "validation",
           "data": {
             "kind": "not_found_phrase",
@@ -1136,7 +1136,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "tool_call",
           "data": {
             "name": "escalate_to_human",
@@ -1150,7 +1150,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "tool_result",
           "data": {
             "name": "escalate_to_human",
@@ -1161,7 +1161,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "decision",
           "data": {
             "point": "escalation",
@@ -1172,7 +1172,7 @@
           }
         },
         {
-          "t_ms": 38469,
+          "t_ms": 35562,
           "type": "final",
           "data": {
             "status": "escalated",
@@ -1878,7 +1878,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "decision",
           "data": {
             "point": "followup_cards",
@@ -1887,7 +1887,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "decision",
           "data": {
             "point": "followup_context",
@@ -1898,7 +1898,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "decision",
           "data": {
             "point": "route_decided",
@@ -1913,7 +1913,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "tool_call",
           "data": {
             "name": "list_cards",
@@ -1952,7 +1952,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "tool_result",
           "data": {
             "name": "list_cards",
@@ -1964,7 +1964,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "memory",
           "data": {
             "action": "remember_cards",
@@ -1972,7 +1972,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -1981,7 +1981,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "final",
           "data": {
             "status": "answered",
@@ -2335,7 +2335,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "decision",
           "data": {
             "point": "route_decided",
@@ -2358,7 +2358,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "tool_call",
           "data": {
             "name": "list_cards",
@@ -2373,7 +2373,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "tool_result",
           "data": {
             "name": "list_cards",
@@ -2389,7 +2389,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "memory",
           "data": {
             "action": "remember_cards",
@@ -2397,7 +2397,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -2406,7 +2406,7 @@
           }
         },
         {
-          "t_ms": 15,
+          "t_ms": 0,
           "type": "final",
           "data": {
             "status": "answered",
@@ -2741,7 +2741,7 @@
         },
         "completeness": 1.0
       },
-      "wall_ms": 5278,
+      "wall_ms": 2538,
       "status": "answered",
       "route_raw": "catalog_list",
       "answer": "В реестрах найдено (отрасль: Pharma & HC): 5.\n\nПроекты (3):\n1. Маркетинговая стратегия фармацевтического дистрибутора — Синтетический клиент P03 (проект, 2025)\n2. Стратегия развития сети клиник — Синтетический клиент P02 (проект, 2022)\n3. Повышение операционной эффективности фармацевтического завода — Синтетический клиент P01 (проект, 2019)\n\nПропозалы (2):\n1. Предложение по цифровизации клиник — Синтетический клиент R02 (пропозал, 2024)\n2. Предложение по стратегии фармацевтической компании — Синтетический клиент R01 (пропозал, 2021)\n\nИсточник: каталог карточек реестров.",
@@ -2861,7 +2861,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "llm_call",
           "data": {
             "stage": "classify",
@@ -2869,12 +2869,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": false,
-            "latency_ms": 5280,
+            "latency_ms": 2547,
             "usage": {
               "prompt_tokens": 190,
               "completion_tokens": 2,
-              "total_duration_ms": 3232,
-              "load_duration_ms": 4
+              "total_duration_ms": 495,
+              "load_duration_ms": 8
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -2882,7 +2882,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "decision",
           "data": {
             "point": "classifier",
@@ -2891,7 +2891,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "decision",
           "data": {
             "point": "route_decided",
@@ -2915,7 +2915,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "tool_call",
           "data": {
             "name": "list_cards",
@@ -2930,7 +2930,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "tool_result",
           "data": {
             "name": "list_cards",
@@ -2946,7 +2946,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "memory",
           "data": {
             "action": "remember_cards",
@@ -2954,7 +2954,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -2963,7 +2963,7 @@
           }
         },
         {
-          "t_ms": 5280,
+          "t_ms": 2547,
           "type": "final",
           "data": {
             "status": "answered",
@@ -3147,7 +3147,7 @@
           "required": false
         }
       },
-      "wall_ms": 2577,
+      "wall_ms": 2548,
       "status": "smalltalk",
       "route_raw": "smalltalk",
       "answer": "Я отвечаю только на вопросы по базе знаний компании: проекты и пропозалы из реестров, продукты и коммерческие предложения. Этот вопрос к ней не относится.",
@@ -3176,7 +3176,7 @@
           }
         },
         {
-          "t_ms": 2577,
+          "t_ms": 2547,
           "type": "llm_call",
           "data": {
             "stage": "classify",
@@ -3184,12 +3184,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": false,
-            "latency_ms": 2577,
+            "latency_ms": 2547,
             "usage": {
               "prompt_tokens": 191,
               "completion_tokens": 4,
-              "total_duration_ms": 540,
-              "load_duration_ms": 8
+              "total_duration_ms": 501,
+              "load_duration_ms": 7
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -3197,7 +3197,7 @@
           }
         },
         {
-          "t_ms": 2577,
+          "t_ms": 2547,
           "type": "decision",
           "data": {
             "point": "classifier",
@@ -3206,7 +3206,7 @@
           }
         },
         {
-          "t_ms": 2577,
+          "t_ms": 2547,
           "type": "decision",
           "data": {
             "point": "route_decided",
@@ -3220,7 +3220,7 @@
           }
         },
         {
-          "t_ms": 2577,
+          "t_ms": 2547,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -3229,7 +3229,7 @@
           }
         },
         {
-          "t_ms": 2577,
+          "t_ms": 2547,
           "type": "final",
           "data": {
             "status": "smalltalk",
@@ -3301,7 +3301,7 @@
           "reason": "user_request"
         }
       },
-      "wall_ms": 1,
+      "wall_ms": 9,
       "status": "escalated",
       "route_raw": "escalation",
       "answer": "Передал ваш запрос: владелец реестра проектов. Номер обращения ESC-20261120-0002.",
@@ -3363,18 +3363,18 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "tool_result",
           "data": {
             "name": "escalate_to_human",
-            "latency_ms": 0,
+            "latency_ms": 15,
             "status": "success",
             "ticket": "ESC-20261120-0002",
             "queued": true
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "decision",
           "data": {
             "point": "escalation",
@@ -3385,7 +3385,7 @@
           }
         },
         {
-          "t_ms": 0,
+          "t_ms": 15,
           "type": "final",
           "data": {
             "status": "escalated",
@@ -3455,7 +3455,7 @@
         },
         "llm_regenerations": 1
       },
-      "wall_ms": 84773,
+      "wall_ms": 60353,
       "status": "escalated",
       "route_raw": "tools",
       "answer": "Не удалось сформировать ответ, каждое утверждение которого подтверждено найденными документами. Вопрос передан на проверку: владелец базы коммерческих предложений, обращение ESC-20261120-0003.\n\nНайденные фрагменты:\n\n[Фрагмент 1] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf)\n3. Что такое AIMS AIMS (Asset Intelligence Management System 2.0) — интеллектуальная система управления имуществом на базе цифровых решений. Система объединяет управленческое и\nцифровое ядро.\nУправленческое ядро:\n• распределение ролей и полномочий — закрепляет роли, полномочия и ответственность за у…\n\n[Фрагмент 2] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf)\n8. Портфель инициатив и дорожная карта Инициативы распределяются по матрице «Величина эффекта — время реализации»: быстрые победы (высокий эффект, короткий срок), стратегические\nинициативы (высокий эффект, длительный срок), тактические шаги (умеренный эффект, короткий срок), нецелесообразные усилия …\n\n[Фрагмент 3] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf)\nAIMS — Asset Intelligence Management System 2.0 Документ: Описание продукта AIMS (интеллектуальная система управления имущественными активами 2.0) Категория: products / управление имущественными активами",
@@ -3528,7 +3528,7 @@
           }
         },
         {
-          "t_ms": 3172,
+          "t_ms": 2765,
           "type": "decision",
           "data": {
             "point": "document_filter",
@@ -3540,7 +3540,7 @@
           }
         },
         {
-          "t_ms": 10359,
+          "t_ms": 9109,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -3548,12 +3548,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 7187,
+            "latency_ms": 6344,
             "usage": {
               "prompt_tokens": 649,
               "completion_tokens": 44,
-              "total_duration_ms": 5154,
-              "load_duration_ms": 5
+              "total_duration_ms": 4328,
+              "load_duration_ms": 8
             },
             "tool_calls": [
               {
@@ -3569,7 +3569,7 @@
           }
         },
         {
-          "t_ms": 10359,
+          "t_ms": 9109,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
@@ -3585,11 +3585,11 @@
           }
         },
         {
-          "t_ms": 10390,
+          "t_ms": 9125,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
-            "latency_ms": 30,
+            "latency_ms": 15,
             "count": 3,
             "fragments_in_context": 3,
             "top_k": 3,
@@ -3606,7 +3606,7 @@
           }
         },
         {
-          "t_ms": 43250,
+          "t_ms": 40375,
           "type": "llm_call",
           "data": {
             "stage": "answer",
@@ -3614,12 +3614,12 @@
             "ok": true,
             "messages": 4,
             "tools_offered": true,
-            "latency_ms": 32859,
+            "latency_ms": 31250,
             "usage": {
               "prompt_tokens": 1584,
               "completion_tokens": 137,
-              "total_duration_ms": 30810,
-              "load_duration_ms": 8
+              "total_duration_ms": 29202,
+              "load_duration_ms": 12
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -3627,7 +3627,7 @@
           }
         },
         {
-          "t_ms": 43250,
+          "t_ms": 40375,
           "type": "validation",
           "data": {
             "kind": "citations",
@@ -3637,7 +3637,7 @@
           }
         },
         {
-          "t_ms": 43250,
+          "t_ms": 40375,
           "type": "validation",
           "data": {
             "kind": "grounding",
@@ -3652,7 +3652,7 @@
           }
         },
         {
-          "t_ms": 43250,
+          "t_ms": 40375,
           "type": "decision",
           "data": {
             "point": "regenerate",
@@ -3661,7 +3661,7 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60344,
           "type": "llm_call",
           "data": {
             "stage": "regenerate",
@@ -3669,12 +3669,12 @@
             "ok": true,
             "messages": 6,
             "tools_offered": false,
-            "latency_ms": 41515,
+            "latency_ms": 19969,
             "usage": {
               "prompt_tokens": 1772,
               "completion_tokens": 146,
-              "total_duration_ms": 39498,
-              "load_duration_ms": 7
+              "total_duration_ms": 17913,
+              "load_duration_ms": 12
             },
             "tool_calls": [],
             "tool_call_parsed_from_text": false,
@@ -3682,7 +3682,7 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60344,
           "type": "validation",
           "data": {
             "kind": "citations",
@@ -3692,7 +3692,7 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60344,
           "type": "validation",
           "data": {
             "kind": "grounding",
@@ -3707,7 +3707,7 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60344,
           "type": "tool_call",
           "data": {
             "name": "escalate_to_human",
@@ -3721,18 +3721,18 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60359,
           "type": "tool_result",
           "data": {
             "name": "escalate_to_human",
-            "latency_ms": 0,
+            "latency_ms": 15,
             "status": "success",
             "ticket": "ESC-20261120-0003",
             "queued": true
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60359,
           "type": "decision",
           "data": {
             "point": "escalation",
@@ -3743,7 +3743,7 @@
           }
         },
         {
-          "t_ms": 84765,
+          "t_ms": 60359,
           "type": "final",
           "data": {
             "status": "escalated",
@@ -3823,7 +3823,7 @@
           "required": false
         }
       },
-      "wall_ms": 6334,
+      "wall_ms": 4818,
       "status": "degraded",
       "route_raw": "degraded",
       "answer": "Языковая модель сейчас недоступна (нет соединения с Ollama по адресу http://127.0.0.1:9 ([WinError 10061] No connection could be made because the target machine actively refused it)). Ответ не сгенерирован. Ниже — найденные фрагменты без обработки, проверьте их вручную.\n\n[Фрагмент 1] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.9195)\n3. Что такое AIMS AIMS (Asset Intelligence Management System 2.0) — интеллектуальная система управления имуществом на базе цифровых решений. Система объединяет управленческое и\nцифровое ядро.\nУправленческое ядро:\n• распределение ролей и полномочий — закрепляет роли, полномочия и ответственность за управление имуществом;\n• система управления активами на всём жизненном цикле — объединяет учёт, оценк…\n\n[Фрагмент 2] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.8649)\n8. Портфель инициатив и дорожная карта Инициативы распределяются по матрице «Величина эффекта — время реализации»: быстрые победы (высокий эффект, короткий срок), стратегические\nинициативы (высокий эффект, длительный срок), тактические шаги (умеренный эффект, короткий срок), нецелесообразные усилия (низкий эффект, длительный срок). К быстрым победам относится, в частности, высвобождение избыточног…\n\n[Фрагмент 3] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.8530)\nAIMS — Asset Intelligence Management System 2.0 Документ: Описание продукта AIMS (интеллектуальная система управления имущественными активами 2.0) Категория: products / управление имущественными активами\n\n[Фрагмент 4] AIMS — Asset Intelligence Management System 2.0 (03_aims_asset_management.pdf, score 0.8431)\n7. Цифровой пульс и цифровая биржа Цифровой пульс актива переводит управление активами из режима реагирования на отказы в режим стратегического планирования за счёт имитационного\nмоделирования. Отслеживаемые показатели: стоимость актива, загрузка мощностей, риск отказа, срок окупаемости (PP), доходность (NPV), рентабельность активов (ROA), уровень загрузки, удовлетворение спроса. Сценарии сравнива…\n\nПроверьте, что Ollama запущена (ollama serve) и модель загружена (ollama list).",
@@ -3899,7 +3899,7 @@
           }
         },
         {
-          "t_ms": 4250,
+          "t_ms": 2765,
           "type": "decision",
           "data": {
             "point": "document_filter",
@@ -3911,7 +3911,7 @@
           }
         },
         {
-          "t_ms": 6280,
+          "t_ms": 4795,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -3921,7 +3921,7 @@
           }
         },
         {
-          "t_ms": 6280,
+          "t_ms": 4795,
           "type": "decision",
           "data": {
             "point": "llm_unavailable",
@@ -3929,7 +3929,7 @@
           }
         },
         {
-          "t_ms": 6280,
+          "t_ms": 4795,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
@@ -3944,11 +3944,11 @@
           }
         },
         {
-          "t_ms": 6327,
+          "t_ms": 4827,
           "type": "tool_result",
           "data": {
             "name": "search_knowledge_base",
-            "latency_ms": 47,
+            "latency_ms": 32,
             "count": 4,
             "fragments_in_context": 4,
             "top_k": 4,
@@ -3966,7 +3966,7 @@
           }
         },
         {
-          "t_ms": 6327,
+          "t_ms": 4827,
           "type": "memory",
           "data": {
             "action": "add_turn",
@@ -3975,7 +3975,7 @@
           }
         },
         {
-          "t_ms": 6327,
+          "t_ms": 4827,
           "type": "final",
           "data": {
             "status": "degraded",
@@ -4066,7 +4066,7 @@
           "reason": "component_failure"
         }
       },
-      "wall_ms": 7012,
+      "wall_ms": 6270,
       "status": "escalated",
       "route_raw": "tools",
       "answer": "Поиск по базе знаний сейчас недоступен, поэтому ответить не могу. Сбой передан: администратор сервиса, обращение ESC-20261120-0004.\nПроверьте, что индекс собран (python src/build_index.py --profile public) и что хранилище Qdrant не открыто другим процессом.",
@@ -4114,7 +4114,7 @@
           }
         },
         {
-          "t_ms": 6984,
+          "t_ms": 6250,
           "type": "llm_call",
           "data": {
             "stage": "plan",
@@ -4122,12 +4122,12 @@
             "ok": true,
             "messages": 2,
             "tools_offered": true,
-            "latency_ms": 6969,
+            "latency_ms": 6218,
             "usage": {
               "prompt_tokens": 646,
               "completion_tokens": 39,
-              "total_duration_ms": 4955,
-              "load_duration_ms": 7
+              "total_duration_ms": 4199,
+              "load_duration_ms": 6
             },
             "tool_calls": [
               {
@@ -4143,7 +4143,7 @@
           }
         },
         {
-          "t_ms": 6984,
+          "t_ms": 6250,
           "type": "tool_call",
           "data": {
             "name": "search_knowledge_base",
@@ -4156,7 +4156,7 @@
           }
         },
         {
-          "t_ms": 7000,
+          "t_ms": 6265,
           "type": "tool_error",
           "data": {
             "name": "search_knowledge_base",
@@ -4166,7 +4166,7 @@
           }
         },
         {
-          "t_ms": 7000,
+          "t_ms": 6265,
           "type": "decision",
           "data": {
             "point": "tool_failed",
@@ -4175,7 +4175,7 @@
           }
         },
         {
-          "t_ms": 7000,
+          "t_ms": 6265,
           "type": "tool_call",
           "data": {
             "name": "escalate_to_human",
@@ -4189,18 +4189,18 @@
           }
         },
         {
-          "t_ms": 7015,
+          "t_ms": 6281,
           "type": "tool_result",
           "data": {
             "name": "escalate_to_human",
-            "latency_ms": 15,
+            "latency_ms": 16,
             "status": "success",
             "ticket": "ESC-20261120-0004",
             "queued": true
           }
         },
         {
-          "t_ms": 7015,
+          "t_ms": 6281,
           "type": "decision",
           "data": {
             "point": "escalation",
@@ -4211,7 +4211,7 @@
           }
         },
         {
-          "t_ms": 7015,
+          "t_ms": 6281,
           "type": "final",
           "data": {
             "status": "escalated",
